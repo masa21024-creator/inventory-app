@@ -755,7 +755,8 @@ function chg(d) {
     prevStock: item.stock - d,
     newStock: item.stock,
     unitPrice: item.unitPrice || 0,
-    location: loc
+    location: loc,
+    source: 'sp'
   };
   // 入荷で発注ラインを超えたら依頼済みリセット→ボタン非表示
   if (d > 0 && item.stock > item.orderAt && orderRequested[item.id]) {

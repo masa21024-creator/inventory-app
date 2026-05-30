@@ -227,6 +227,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <div style="padding:8px 12px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:19px;font-weight:600">操作履歴</span>
+        <span style="font-size:12px;color:var(--text-tertiary);background:var(--bg-tertiary);padding:2px 8px;border-radius:4px;white-space:nowrap">※ 過去5年分を保管</span>
         <input type="date" id="hist-date-from" class="sinput" onchange="renderHistory()" style="width:140px;font-size:18px"/>
         <span style="font-size:18px;color:var(--text-secondary)">〜</span>
         <input type="date" id="hist-date-to" class="sinput" onchange="renderHistory()" style="width:140px;font-size:18px"/>
@@ -563,8 +564,8 @@ function addHistory(item, prevStock, newStock, action){
   const tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':item.tier+'段目'):'';
   const rec={id:'h'+Date.now()+Math.random(),ts:new Date().toISOString(),itemId:item.id,itemName:item.name,itemCode:item.code||'',cat:item.cat||'',action,diff:newStock-prevStock,prevStock,newStock,unitPrice:item.unitPrice||0,location:room?room.name+' › '+shelf.name+' › '+tl:''};
   S.history.unshift(rec);
-  const _2yAgo=new Date();_2yAgo.setFullYear(_2yAgo.getFullYear()-2);
-  S.history=S.history.filter(function(h){return new Date(h.ts)>=_2yAgo;});
+  const _5yAgo=new Date();_5yAgo.setFullYear(_5yAgo.getFullYear()-5);
+  S.history=S.history.filter(function(h){return new Date(h.ts)>=_5yAgo;});
   const histPanel=document.getElementById('panel-history');
   if(histPanel&&histPanel.classList.contains('active'))renderHistory();
   if(window.fbSave) fbSave();
@@ -1937,7 +1938,7 @@ window.fbLoadHistory = async function() {
     if (snap.exists()) {
       const raw = snap.val();
       const twoYearsAgo = new Date();
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 5);
       S.history = Object.values(raw)
         .filter(function(h){ return new Date(h.ts) >= twoYearsAgo; })
         .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });

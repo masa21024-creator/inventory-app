@@ -49,12 +49,13 @@ html,body{height:100dvh;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 .panel.active{display:flex}
 
 /* マップ */
-.map-canvas-wrap{position:relative;overflow:hidden;flex:1}
+.map-canvas-wrap{position:relative;overflow:hidden;flex:1;min-height:0}
 #map-canvas{position:absolute;inset:0;width:100%;height:100%}
 
-/* 検索結果：3件まで縮む、4件以上は30%固定スクロール */
-.result-panel{display:none;background:#fff;border-top:2px solid #185FA5;overflow-y:auto;max-height:30%}
+/* 検索結果：3件まで縮む、4件以上は25%固定スクロール */
+.result-panel{display:none;background:#fff;border-top:2px solid #185FA5;overflow-y:auto;max-height:25%}
 .result-panel.show{display:block}
+.panel-map-inner{display:flex;flex-direction:column;height:100%}
 .result-card-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(0,0,0,0.07);position:sticky;top:0;background:#fff}
 .result-card-head span{font-size:12px;font-weight:700}
 .result-card-close{border:none;background:none;font-size:22px;color:#aaa;cursor:pointer;padding:0 4px}
@@ -496,6 +497,18 @@ function clearSearch() {
   document.getElementById('search-input').value = '';
   highlightIds = []; drawMap();
   document.getElementById('result-card').classList.remove('show');
+  // result-panel非表示後にcanvasサイズを再計算
+  setTimeout(function() {
+    if (sp_canvas) {
+      var wrap = sp_canvas.parentElement;
+      var r = wrap.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        sp_canvas.width = r.width;
+        sp_canvas.height = r.height;
+        drawMap();
+      }
+    }
+  }, 50);
 }
 
 function showResultCard(titleOrItems, items, showLoc) {
@@ -533,6 +546,18 @@ function showResultCard(titleOrItems, items, showLoc) {
     });
   }
   document.getElementById('result-card').classList.add('show');
+  // result-panel表示後にcanvasサイズを再計算してタッチ判定を更新
+  setTimeout(function() {
+    if (sp_canvas) {
+      var wrap = sp_canvas.parentElement;
+      var r = wrap.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        sp_canvas.width = r.width;
+        sp_canvas.height = r.height;
+        drawMap();
+      }
+    }
+  }, 50);
 }
 
 // ===== カメラ =====
@@ -743,6 +768,20 @@ function chg(d) {
   // 在庫が発注ライン以下になったらボタン表示
   if (d < 0 && item.stock <= item.orderAt) {
     showPickup(item);
+  }
+  // 検索結果リストの在庫表示を更新
+  var resultList = document.getElementById('result-list');
+  if (resultList) {
+    resultList.querySelectorAll('.result-item').forEach(function(el) {
+      if (el.dataset.id === item.id) {
+        var s = sc(item);
+        var stockEl = el.querySelector('.result-stock');
+        if (stockEl) {
+          stockEl.textContent = item.stock + '/' + item.max;
+          stockEl.style.color = s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75';
+        }
+      }
+    });
   }
   // Firebaseに保存
   if (window.fbSave) fbSave();

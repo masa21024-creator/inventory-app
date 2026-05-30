@@ -1812,24 +1812,35 @@ function clearCompletedOrders() {
 
 // ===== ログイン認証 =====
 (function(){
-  var PASS='sysmet1033', KEY='inv_auth', LKEY='inv_auth_local';
+  var PASS='sysmet1033', LKEY='inv_auth_pass';
+  function initApp(){
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('ni-room').addEventListener('change',updateShelfSel);
+    document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
+    window._fbReady.then(function(){
+      fbLoad().then(function(){
+        fbLoadHistory().then(function(){
+          initCanvas();
+          renderSummary();
+          renderRoomTabs();
+          drawMap();
+          renderOrderList();
+          startRealtimeSync();
+        });
+      });
+    });
+  }
   function doLogin(){
     var val=document.getElementById('login-pass').value;
     if(val===PASS){
-      sessionStorage.setItem(KEY,'1');
-      var remember=document.getElementById('login-remember').checked;
-      if(remember){ localStorage.setItem(LKEY,'1'); } else { localStorage.removeItem(LKEY); }
-      document.getElementById('login-screen').classList.add('hidden');
+      // パスワード保存チェック
+      if(document.getElementById('login-remember').checked){
+        localStorage.setItem(LKEY, val);
+      } else {
+        localStorage.removeItem(LKEY);
+      }
       document.getElementById('login-error').style.display='none';
-      window._fbReady.then(function(){
-        fbLoad().then(function(){
-          fbLoadHistory().then(function(){
-            initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();
-          });
-        });
-      });
-      document.getElementById('ni-room').addEventListener('change',updateShelfSel);
-      document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
+      initApp();
     } else {
       document.getElementById('login-error').style.display='block';
       document.getElementById('login-pass').value='';
@@ -1839,27 +1850,18 @@ function clearCompletedOrders() {
   window.doLogin = doLogin;
   window.doLogout = function(){
     if(!confirm('ログアウトしますか？'))return;
-    sessionStorage.removeItem(KEY);
-    localStorage.removeItem('inv_auth_local');
+    localStorage.removeItem(LKEY);
     location.reload();
   };
   window.addEventListener('load', function(){
-    var saved = sessionStorage.getItem(KEY)==='1' || localStorage.getItem(LKEY)==='1';
-    if(!saved){
-      document.getElementById('login-screen').classList.remove('hidden');
-      setTimeout(function(){document.getElementById('login-pass').focus();},100);
-    } else {
-      sessionStorage.setItem(KEY,'1');
-      document.getElementById('login-screen').classList.add('hidden');
-      // 保存ログインの場合も初期化処理を実行
-      window._fbReady.then(function(){
-        fbLoad().then(function(){
-          fbLoadHistory().then(function(){
-            initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();
-          });
-        });
-      });
+    // 保存済みパスワードを入力欄に復元
+    var saved = localStorage.getItem(LKEY);
+    if(saved){
+      document.getElementById('login-pass').value = saved;
+      document.getElementById('login-remember').checked = true;
     }
+    document.getElementById('login-screen').classList.remove('hidden');
+    setTimeout(function(){ document.getElementById('login-pass').focus(); }, 100);
   });
 })();
 </script>
@@ -1964,18 +1966,7 @@ window._syncStarted = false;
 window.startRealtimeSync = function() {
   if (window._syncStarted) return;
   window._syncStarted = true;
-  // historyのリアルタイムリスナー
-  onValue(ref(db, 'history'), function(snap) {
-    if (!snap.exists()) return;
-    var raw = snap.val();
-    var twoYearsAgo = new Date();
-    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-    S.history = Object.values(raw)
-      .filter(function(h){ return new Date(h.ts) >= twoYearsAgo; })
-      .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
-    var activePanel = document.querySelector('.panel.active');
-    if (activePanel && activePanel.id === 'panel-history' && typeof renderHistory === 'function') renderHistory();
-  });
+  // inventoryのみリアルタイム監視（historyは重いので起動時のみ読み込み）
   onValue(ref(db, 'inventory'), function(snap) {
     if (!snap.exists()) return;
     var d = snap.val();

@@ -2003,18 +2003,21 @@ window.fbRefresh = async function() {
     }
   } catch(e) { console.error('fbRefresh error:', e); }
 };
-// 期間指定でFirebaseのhistoryを削除
+// 期間指定でFirebaseのhistoryを削除（一括）
 window.fbDeleteHistoryRange = async function(fromDate, toDate) {
   try {
     const snap = await get(ref(db, 'history'));
     if (!snap.exists()) return;
     const raw = snap.val();
-    const keys = Object.keys(raw);
-    for (const key of keys) {
+    // 残すデータだけ新しいオブジェクトに
+    const keep = {};
+    Object.keys(raw).forEach(function(key) {
       const t = new Date(raw[key].ts);
       const inRange = (!fromDate || t >= fromDate) && (!toDate || t <= toDate);
-      if (inRange) await remove(ref(db, 'history/' + key));
-    }
+      if (!inRange) keep[key] = raw[key];
+    });
+    // 全件上書き（削除対象を除いた状態で保存）
+    await set(ref(db, 'history'), Object.keys(keep).length > 0 ? keep : null);
   } catch(e) { console.error('fbDeleteHistoryRange error:', e); }
 };
 window._fbResolve();

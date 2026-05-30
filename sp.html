@@ -148,16 +148,18 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
 
 <!-- アプリ本体 -->
 <div id="app" class="hidden">
-  <!-- 1行目：タイトル -->
+  <!-- 1行目：タイトル＋要発注＋ログアウト -->
   <div class="header" style="justify-content:space-between;align-items:center">
     <span style="font-size:16px;font-weight:700;color:var(--text-primary)"><i class="ti ti-package" style="margin-right:4px"></i>備品管理ナビ</span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="header-badge" id="low-badge" style="flex-shrink:0;font-size:13px;padding:5px 12px"></button>
+      <button onclick="spLogout()" style="flex-shrink:0;background:none;border:1px solid rgba(163,45,45,0.4);border-radius:12px;color:#A32D2D;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap"><i class="ti ti-logout"></i></button>
+    </div>
   </div>
-  <!-- 2行目：タブ -->
+  <!-- 2行目：タブのみ -->
   <div class="tabbar">
     <button class="tab active" id="tab-map"><i class="ti ti-map-2"></i>マップ</button>
     <button class="tab" id="tab-scan"><i class="ti ti-scan"></i>スキャン</button>
-    <button class="header-badge" id="low-badge" style="margin:6px 6px;flex-shrink:0;font-size:13px;padding:5px 12px"></button>
-    <button onclick="spLogout()" style="margin:6px 6px;flex-shrink:0;background:none;border:1px solid rgba(163,45,45,0.4);border-radius:12px;color:#A32D2D;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap"><i class="ti ti-logout"></i></button>
   </div>
   <div class="content">
     <!-- マップ -->
@@ -838,15 +840,13 @@ window.fbLoad = async function() {
 };
 window.fbSave = async function() {
   try {
-    window._fbSaving = true;
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
       items: S.items, objects: S.objects || [],
       orderRequested: window._orderRequested || {}
     });
-    setTimeout(function(){ window._fbSaving = false; }, 500);
-  } catch(e) { console.error('fbSave error:', e); window._fbSaving = false; }
+  } catch(e) { console.error('fbSave error:', e); }
 };
 window.fbAddHistory = async function(record) {
   try { await push(ref(db, 'history'), record); }
@@ -868,26 +868,28 @@ window.fbLoadHistory = async function() {
 };
 // リアルタイムリスナー：inventory変更を自動反映
 window.startRealtimeSync = function() {
+  var _timer = null;
   onValue(ref(db, 'inventory'), function(snap) {
     if (!snap.exists()) return;
-    if (window._fbSaving) return;
     var d = snap.val();
-    if (d.rooms && d.rooms.length) S.rooms = d.rooms;
-    if (d.shelves && d.shelves.length) S.shelves = d.shelves;
-    if (d.categories && d.categories.length) S.categories = d.categories;
-    if (d.items && d.items.length) S.items = d.items.map(function(i){
-      return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
-    });
-    if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
-      return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
-    });
-    if (d.orderRequested) {
-      window._orderRequested = d.orderRequested;
-      orderRequested = window._orderRequested;
-    }
-    // 表示を更新
-    if (typeof renderBadge === 'function') renderBadge();
-    if (typeof drawMap === 'function') drawMap();
+    if (_timer) clearTimeout(_timer);
+    _timer = setTimeout(function() {
+      if (d.rooms && d.rooms.length) S.rooms = d.rooms;
+      if (d.shelves && d.shelves.length) S.shelves = d.shelves;
+      if (d.categories && d.categories.length) S.categories = d.categories;
+      if (d.items && d.items.length) S.items = d.items.map(function(i){
+        return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+      });
+      if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
+        return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
+      });
+      if (d.orderRequested) {
+        window._orderRequested = d.orderRequested;
+        orderRequested = window._orderRequested;
+      }
+      if (typeof renderBadge === 'function') renderBadge();
+      if (typeof drawMap === 'function') drawMap();
+    }, 500);
   });
 };
 window._fbResolve();

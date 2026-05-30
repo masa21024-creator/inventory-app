@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オフィス消耗品 在庫管理</title>
+<title>備品管理ナビ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
@@ -133,7 +133,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 <div id="login-screen">
   <div class="login-box">
     <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
-    <h2>在庫管理システム</h2>
+    <h2>備品管理ナビ</h2>
     <p>パスワードを入力してください</p>
     <div style="position:relative;width:100%">
       <input class="login-input" type="password" id="login-pass" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;box-sizing:border-box;padding-right:44px"/>
@@ -149,7 +149,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   <!-- 1行目: タイトル -->
   <div style="display:flex;align-items:center;gap:8px;padding:4px 12px">
     <i class="ti ti-package" style="font-size:16px;color:#185FA5;flex-shrink:0"></i>
-    <span style="font-size:13px;font-weight:600;white-space:nowrap">在庫管理</span>
+    <span style="font-size:13px;font-weight:600;white-space:nowrap">備品管理ナビ</span>
     <span id="item-count" style="font-size:11px;color:var(--text-tertiary)"></span>
   </div>
   <!-- 2行目: タブ＋ボタン横並び -->
@@ -1679,13 +1679,7 @@ window.addEventListener('load',()=>{if(sessionStorage.getItem('inv_auth')!=='1')
 
 
 // ===== 発注依頼 =====
-var orderRequests = [
-  {id:'req1', itemId:'i3', itemName:'ボールペン(黒)', requestedAt: new Date(Date.now()-7200000).toISOString(), status:'pending', stockAtRequest:3},
-  {id:'req2', itemId:'i2', itemName:'コピー用紙A3', requestedAt: new Date(Date.now()-3600000).toISOString(), status:'in_progress', stockAtRequest:1},
-  {id:'req4', itemId:'i4', itemName:'ホッチキス', requestedAt: new Date(Date.now()-1800000).toISOString(), status:'pending', stockAtRequest:2},
-  {id:'req5', itemId:'i5', itemName:'コーヒー豆', requestedAt: new Date(Date.now()-900000).toISOString(), status:'pending', stockAtRequest:1},
-  {id:'req3', itemId:'i1', itemName:'コピー用紙A4', requestedAt: new Date(Date.now()-600000).toISOString(), status:'done', stockAtRequest:8},
-];
+var orderRequests = [];
 
 function renderOrderList() {
   const el = document.getElementById('order-list');

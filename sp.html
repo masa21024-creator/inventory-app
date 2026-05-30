@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>在庫管理（スマホ）</title>
+<title>備品管理ナビ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
@@ -130,7 +130,7 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
 <div id="login-screen">
   <div class="login-box">
     <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
-    <h2>在庫管理システム</h2>
+    <h2>備品管理ナビ</h2>
     <p>パスワードを入力してください</p>
     <div class="login-input-wrap">
       <input class="login-input" type="password" id="login-pass" placeholder="パスワード"/>
@@ -143,21 +143,25 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
 
 <!-- アプリ本体 -->
 <div id="app" class="hidden">
-  <!-- 1行目：タイトル＋検索＋部屋選択 -->
-  <div class="header">
-    <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索"/>
-    <button class="header-search-btn" id="search-btn">検索</button>
-    <select class="header-room" id="room-select"></select>
+  <!-- 1行目：タイトル -->
+  <div class="header" style="justify-content:space-between;align-items:center">
+    <span style="font-size:16px;font-weight:700;color:var(--text-primary)"><i class="ti ti-package" style="margin-right:4px"></i>備品管理ナビ</span>
+    <button class="header-badge" id="low-badge" style="flex-shrink:0"></button>
   </div>
-  <!-- 2行目：タブ＋要発注ボタン -->
+  <!-- 2行目：タブ -->
   <div class="tabbar">
     <button class="tab active" id="tab-map"><i class="ti ti-map-2"></i>マップ</button>
     <button class="tab" id="tab-scan"><i class="ti ti-scan"></i>スキャン</button>
-    <button class="header-badge" id="low-badge" style="margin:6px 8px;flex-shrink:0"></button>
   </div>
   <div class="content">
     <!-- マップ -->
     <div class="panel active" id="panel-map">
+      <!-- 検索ボックス（マップ上部） -->
+      <div style="display:flex;gap:8px;padding:8px 10px;background:#fff;border-bottom:1px solid rgba(0,0,0,0.08);flex-shrink:0;align-items:center">
+        <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索" style="flex:1"/>
+        <button class="header-search-btn" id="search-btn">検索</button>
+        <select class="header-room" id="room-select" style="font-size:13px;padding:6px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;outline:none"></select>
+      </div>
       <div class="map-canvas-wrap">
         <canvas id="map-canvas"></canvas>
         <!-- ピックアップカード：マップオーバーレイ -->

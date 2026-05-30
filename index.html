@@ -662,6 +662,8 @@ function execHistoryDelete(){
     if(toDate&&t>toDate)return true;
     return false;
   });
+  // Firebaseからも削除
+  if(window.fbDeleteHistoryRange) fbDeleteHistoryRange(fromDate, toDate);
   closeHistoryDeleteModal();
   renderHistory();
 }
@@ -693,7 +695,7 @@ function renderHistory(){
   if(hasPeriod){
     var itemMap={};
     filtered.forEach(function(h){
-      if(!itemMap[h.itemName])itemMap[h.itemName]={itemName:h.itemName,totalIn:0,totalOut:0,lastStock:h.newStock,unitPrice:h.unitPrice||0,dateMap:{}};
+      if(!itemMap[h.itemName])itemMap[h.itemName]={itemName:h.itemName,itemId:h.itemId,totalIn:0,totalOut:0,lastStock:h.newStock,unitPrice:h.unitPrice||0,dateMap:{}};
       var im=itemMap[h.itemName],diff=h.diff||0;
       if(diff>0)im.totalIn+=diff;else if(diff<0)im.totalOut+=diff;
       im.lastStock=h.newStock;if(h.unitPrice)im.unitPrice=h.unitPrice;
@@ -713,7 +715,7 @@ function renderHistory(){
         +'<div style="display:flex;align-items:center;gap:6px"><i class="ti ti-chevron-right" id="'+uid+'-icon" style="font-size:18px;color:var(--text-tertiary);transition:transform .2s"></i><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+im.itemName+'</span></div>'
         +'<div style="text-align:right;font-weight:700;color:#1D9E75">'+(im.totalIn>0?'+'+im.totalIn:'-')+'</div>'
         +'<div style="text-align:right;font-weight:700;color:#E24B4A">'+(im.totalOut<0?im.totalOut:'-')+'</div>'
-        +'<div style="text-align:right;color:var(--text-secondary)">'+im.lastStock+'</div>'
+        +'<div style="text-align:right;color:var(--text-secondary)">'+(function(){var cur=S.items.find(function(i){return i.id===im.itemId;});return cur?cur.stock:im.lastStock;})()+'</div>'
         +'<div style="text-align:right;color:var(--text-secondary);font-size:18px">'+priceStr+'</div></div>';
       html+='<div id="'+uid+'" style="display:none;background:var(--bg-secondary);border-bottom:1px solid var(--border)">';
       Object.keys(im.dateMap).forEach(function(dk){
@@ -741,7 +743,7 @@ function renderHistory(){
       var d=new Date(h.ts),dk=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+String(d.getDate()).padStart(2,'0');
       if(!dateGroups[dk])dateGroups[dk]={logs:[],itemMap:{}};
       dateGroups[dk].logs.push(h);
-      if(!dateGroups[dk].itemMap[h.itemName])dateGroups[dk].itemMap[h.itemName]={itemName:h.itemName,totalIn:0,totalOut:0,lastStock:h.newStock,unitPrice:h.unitPrice||0,logs:[]};
+      if(!dateGroups[dk].itemMap[h.itemName])dateGroups[dk].itemMap[h.itemName]={itemName:h.itemName,itemId:h.itemId,totalIn:0,totalOut:0,lastStock:h.newStock,unitPrice:h.unitPrice||0,logs:[]};
       var im=dateGroups[dk].itemMap[h.itemName],diff=h.diff||0;
       if(diff>0)im.totalIn+=diff;else if(diff<0)im.totalOut+=diff;
       im.lastStock=h.newStock;if(h.unitPrice)im.unitPrice=h.unitPrice;im.logs.push(h);
@@ -766,7 +768,7 @@ function renderHistory(){
           +'<div style="display:flex;align-items:center;gap:5px"><i class="ti ti-chevron-right" id="'+tid+'-icon" style="font-size:17px;color:var(--text-tertiary);transition:transform .2s"></i><span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+im.itemName+'</span></div>'
           +'<div style="text-align:right;font-weight:700;color:#1D9E75">'+(im.totalIn>0?'+'+im.totalIn:'-')+'</div>'
           +'<div style="text-align:right;font-weight:700;color:#E24B4A">'+(im.totalOut<0?im.totalOut:'-')+'</div>'
-          +'<div style="text-align:right;color:var(--text-secondary)">'+im.lastStock+'</div>'
+          +'<div style="text-align:right;color:var(--text-secondary)">'+(function(){var cur=S.items.find(function(i){return i.id===im.itemId;});return cur?cur.stock:im.lastStock;})()+'</div>'
           +'<div style="text-align:right;color:var(--text-secondary);font-size:18px">'+priceStr+'</div></div>';
         html+='<div id="'+tid+'" style="display:none;background:var(--bg-secondary);padding:4px 10px 4px 28px;border-bottom:1px solid var(--border)">';
         im.logs.forEach(function(h){
@@ -1868,7 +1870,7 @@ function clearCompletedOrders() {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, get, push, remove, query, orderByChild, startAt, endAt } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 const firebaseConfig = {
   apiKey: "AIzaSyCwDAmpBXsCKRyf69gUVyTsPatgbbtT3EE",
   authDomain: "inventory-app-80426.firebaseapp.com",
@@ -2000,6 +2002,20 @@ window.fbRefresh = async function() {
       if (ap.id==='panel-settings' && typeof renderSettings==='function') renderSettings();
     }
   } catch(e) { console.error('fbRefresh error:', e); }
+};
+// 期間指定でFirebaseのhistoryを削除
+window.fbDeleteHistoryRange = async function(fromDate, toDate) {
+  try {
+    const snap = await get(ref(db, 'history'));
+    if (!snap.exists()) return;
+    const raw = snap.val();
+    const keys = Object.keys(raw);
+    for (const key of keys) {
+      const t = new Date(raw[key].ts);
+      const inRange = (!fromDate || t >= fromDate) && (!toDate || t <= toDate);
+      if (inRange) await remove(ref(db, 'history/' + key));
+    }
+  } catch(e) { console.error('fbDeleteHistoryRange error:', e); }
 };
 window._fbResolve();
 </script>

@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>備品管理ナビ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
@@ -1977,9 +1980,10 @@ window.startRealtimeSync = function() {
     if (d.orderRequested) {
       window._orderRequested = d.orderRequested;
       Object.keys(d.orderRequested).forEach(function(itemId) {
+        var item = S.items.find(function(i){ return i.id === itemId; });
+        // PC発注依頼リストに追加（在庫超えでも残す）
         var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
         if (!exists) {
-          var item = S.items.find(function(i){ return i.id === itemId; });
           var itemName = item ? item.name : (d.items||[]).filter(function(i){ return i.id === itemId; }).map(function(i){ return i.name; })[0] || itemId;
           orderRequests.push({
             id: 'req-' + itemId + '-' + Date.now(),

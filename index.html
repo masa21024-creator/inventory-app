@@ -623,17 +623,17 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
 <div id="app-sp">
 <!-- ログイン画面 -->
-<div id="login-screen">
+<div id="login-screen-sp">
   <div class="login-box">
     <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
     <h2>在庫管理システム</h2>
     <p>パスワードを入力してください</p>
     <div class="login-input-wrap">
-      <input class="login-input" type="password" id="login-pass" placeholder="パスワード"/>
+      <input class="login-input" type="password" id="login-pass-sp" placeholder="パスワード"/>
       <button type="button" class="toggle-pass-btn" id="toggle-pass">👁</button>
     </div>
     <button class="login-btn" id="login-btn">ログイン</button>
-    <span class="login-error" id="login-error">パスワードが違います</span>
+    <span class="login-error" id="login-error-sp">パスワードが違います</span>
   </div>
 </div>
 
@@ -641,7 +641,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 <div id="app" class="hidden">
   <!-- 1行目：タイトル＋検索＋部屋選択 -->
   <div class="header">
-    <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索"/>
+    <input type="text" class="header-search" id="search-input-sp" placeholder="品目名・コード検索"/>
     <button class="header-search-btn" id="search-btn">検索</button>
     <select class="header-room" id="room-select"></select>
   </div>
@@ -653,7 +653,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div class="content">
     <!-- マップ -->
-    <div class="panel active" id="panel-map">
+    <div class="panel active" id="panel-map-sp">
       <div class="map-canvas-wrap">
         <canvas id="map-canvas"></canvas>
         <!-- ピックアップカード：マップオーバーレイ -->
@@ -669,7 +669,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       </div>
     </div>
     <!-- スキャン -->
-    <div class="panel" id="panel-scan">
+    <div class="panel" id="panel-scan-sp">
       <div class="scan-status" id="scan-status">カメラを起動中...</div>
       <div class="cam-wrap">
         <video id="cam-video" playsinline muted autoplay></video>
@@ -804,16 +804,16 @@ const PASS = 'sysmet1033';
 const KEY = 'inv_auth_sp';
 
 function doLogin() {
-  var val = document.getElementById('login-pass').value;
+  var val = document.getElementById('login-pass-sp').value;
   if (val === PASS) {
     sessionStorage.setItem(KEY, '1');
-    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('login-screen-sp').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     initApp();
   } else {
-    document.getElementById('login-error').style.display = 'block';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
+    document.getElementById('login-error-sp').style.display = 'block';
+    document.getElementById('login-pass-sp').value = '';
+    document.getElementById('login-pass-sp').focus();
   }
 }
 
@@ -825,20 +825,20 @@ document.getElementById('login-btn').addEventListener('touchend', function(e) {
 });
 
 // Enterキー対応
-document.getElementById('login-pass').addEventListener('keydown', function(e) {
+document.getElementById('login-pass-sp').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') doLogin();
 });
 
 // パスワード表示切り替え
 document.getElementById('toggle-pass').addEventListener('click', function() {
-  var i = document.getElementById('login-pass');
+  var i = document.getElementById('login-pass-sp');
   if (i.type === 'password') { i.type = 'text'; this.textContent = '🙈'; }
   else { i.type = 'password'; this.textContent = '👁'; }
 });
 
 // 起動時チェック
 if (sessionStorage.getItem(KEY) === '1') {
-  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('login-screen-sp').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 }
 
@@ -852,8 +852,8 @@ function initApp() {
 // ===== ボタンバインド =====
 function bindButtons() {
   document.getElementById('search-btn').addEventListener('click', doSearch);
-  document.getElementById('search-input').addEventListener('keydown', function(e) { if(e.key==='Enter') doSearch(); });
-  document.getElementById('search-input').addEventListener('input', function() { if(!this.value) clearSearch(); });
+  document.getElementById('search-input-sp').addEventListener('keydown', function(e) { if(e.key==='Enter') doSearch(); });
+  document.getElementById('search-input-sp').addEventListener('input', function() { if(!this.value) clearSearch(); });
   document.getElementById('result-close').addEventListener('click', clearSearch);
   document.getElementById('manual-clear-btn').addEventListener('click', clearManualSearch);
   document.getElementById('manual-input').addEventListener('input', onManualInput);
@@ -1058,7 +1058,7 @@ function onMapClick(e) {
 
 // ===== 検索 =====
 function doSearch() {
-  var q = document.getElementById('search-input').value.trim().toLowerCase();
+  var q = document.getElementById('search-input-sp').value.trim().toLowerCase();
   if (!q) { clearSearch(); return; }
   var matched = S.items.filter(function(i) { return i.name.toLowerCase().includes(q) || (i.code && i.code.toLowerCase().includes(q)); });
   if (!matched.length) { showResultCard('一致する品目なし', []); return; }
@@ -1070,7 +1070,7 @@ function doSearch() {
 }
 
 function clearSearch() {
-  document.getElementById('search-input').value = '';
+  document.getElementById('search-input-sp').value = '';
   highlightIds = []; drawMap();
   document.getElementById('result-card').classList.remove('show');
 }
@@ -1226,7 +1226,7 @@ function showPickup(item) {
   var scanCard = document.getElementById('scan-pickup-card');
   mapCard.innerHTML = html;
   scanCard.innerHTML = html;
-  var inScan = document.getElementById('panel-scan').classList.contains('active');
+  var inScan = document.getElementById('panel-scan-sp').classList.contains('active');
   if (inScan) {
     scanCard.classList.add('show');
     mapCard.classList.remove('show');

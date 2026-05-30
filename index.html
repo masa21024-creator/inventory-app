@@ -123,6 +123,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 /* ===== ログイン画面 ===== */
 #login-screen{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999}
 #login-screen.hidden{display:none}
+#login-screen-sp{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999}
+#login-screen-sp.hidden{display:none}
 .login-box{background:#fff;border-radius:16px;padding:40px 32px;width:300px;display:flex;flex-direction:column;gap:16px;align-items:center;box-shadow:0 8px 40px rgba(0,0,0,0.3)}
 .login-box h2{font-size:18px;font-weight:700}
 .login-box p{font-size:13px;color:#888;text-align:center}
@@ -630,9 +632,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <p>パスワードを入力してください</p>
     <div class="login-input-wrap">
       <input class="login-input" type="password" id="login-pass-sp" placeholder="パスワード"/>
-      <button type="button" class="toggle-pass-btn" id="toggle-pass">👁</button>
+      <button type="button" class="toggle-pass-btn" id="toggle-pass-sp">👁</button>
     </div>
-    <button class="login-btn" id="login-btn">ログイン</button>
+    <button class="login-btn" id="login-btn-sp">ログイン</button>
     <span class="login-error" id="login-error-sp">パスワードが違います</span>
   </div>
 </div>
@@ -803,43 +805,53 @@ const S={rooms:[{id:'r1',name:'第1会議室'},{id:'r2',name:'第2会議室'},{i
 const PASS = 'sysmet1033';
 const KEY = 'inv_auth_sp';
 
+function showApp() {
+  var ls = document.getElementById('login-screen-sp');
+  var ap = document.getElementById('app');
+  if (ls) { ls.style.display = 'none'; }
+  if (ap) { ap.style.display = 'flex'; ap.classList.remove('hidden'); }
+}
+
 function doLogin() {
   var val = document.getElementById('login-pass-sp').value;
   if (val === PASS) {
     sessionStorage.setItem(KEY, '1');
-    document.getElementById('login-screen-sp').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+    showApp();
     initApp();
   } else {
-    document.getElementById('login-error-sp').style.display = 'block';
+    var err = document.getElementById('login-error-sp');
+    if (err) err.style.display = 'block';
     document.getElementById('login-pass-sp').value = '';
     document.getElementById('login-pass-sp').focus();
   }
 }
 
-// ボタンイベント（click + touchend 両方）
-document.getElementById('login-btn').addEventListener('click', doLogin);
-document.getElementById('login-btn').addEventListener('touchend', function(e) {
-  e.preventDefault();
-  doLogin();
-});
+// ボタンイベント
+var loginBtn = document.getElementById('login-btn-sp');
+if (loginBtn) {
+  loginBtn.addEventListener('click', function(e) { e.preventDefault(); doLogin(); });
+  loginBtn.addEventListener('touchend', function(e) { e.preventDefault(); doLogin(); });
+}
 
 // Enterキー対応
-document.getElementById('login-pass-sp').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') doLogin();
-});
+var loginPass = document.getElementById('login-pass-sp');
+if (loginPass) {
+  loginPass.addEventListener('keydown', function(e) { if(e.key==='Enter') doLogin(); });
+}
 
 // パスワード表示切り替え
-document.getElementById('toggle-pass').addEventListener('click', function() {
-  var i = document.getElementById('login-pass-sp');
-  if (i.type === 'password') { i.type = 'text'; this.textContent = '🙈'; }
-  else { i.type = 'password'; this.textContent = '👁'; }
-});
+var togglePass = document.getElementById('toggle-pass-sp');
+if (togglePass) {
+  togglePass.addEventListener('click', function() {
+    var i = document.getElementById('login-pass-sp');
+    if (i.type === 'password') { i.type = 'text'; this.textContent = '🙈'; }
+    else { i.type = 'password'; this.textContent = '👁'; }
+  });
+}
 
 // 起動時チェック
 if (sessionStorage.getItem(KEY) === '1') {
-  document.getElementById('login-screen-sp').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+  showApp();
 }
 
 // ===== アプリ初期化 =====

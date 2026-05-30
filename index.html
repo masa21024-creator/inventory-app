@@ -640,7 +640,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <!-- アプリ本体 -->
-<div id="app" class="hidden">
+<div id="app-main" style="display:none;flex-direction:column;height:100vh;overflow:hidden">
   <!-- 1行目：タイトル＋検索＋部屋選択 -->
   <div class="header">
     <input type="text" class="header-search" id="search-input-sp" placeholder="品目名・コード検索"/>
@@ -807,9 +807,9 @@ const KEY = 'inv_auth_sp';
 
 function showApp() {
   var ls = document.getElementById('login-screen-sp');
-  var ap = document.getElementById('app');
+  var ap = document.getElementById('app-main');
   if (ls) { ls.style.display = 'none'; }
-  if (ap) { ap.style.display = 'flex'; ap.classList.remove('hidden'); }
+  if (ap) { ap.style.display = 'flex'; }
 }
 
 function doLogin() {

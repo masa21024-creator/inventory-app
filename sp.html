@@ -738,6 +738,9 @@ function chg(d) {
   if (d < 0 && item.stock <= item.orderAt) {
     showPickup(item);
   }
+  // Firebaseに保存
+  if (window.fbSave) fbSave();
+  if (window.fbAddHistory) fbAddHistory(record);
 }
 
 // ===== 起動時にログイン済みならアプリ初期化 =====

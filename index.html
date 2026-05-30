@@ -42,7 +42,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .floor-wrap{flex:1;position:relative;overflow:hidden}
 #floor-canvas{position:absolute;inset:0;width:100%;height:100%}
 .detail-panel{width:240px;border-left:1px solid var(--border);background:var(--bg-primary);overflow-y:auto;padding:12px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;font-size:12px}
-.detail-panel.hidden{display:none}
+.detail-panel.hidden .detail-inner{opacity:0;pointer-events:none}
 .item-row{padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-primary)}
 .item-name-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:4px}
 .item-name{font-size:15px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -181,8 +181,10 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   <div class="map-body">
     <div class="floor-wrap" id="floor-wrap"><canvas id="floor-canvas"></canvas></div>
     <div class="detail-panel hidden" id="detail-panel">
-      <div style="color:var(--text-tertiary);text-align:center;padding:32px 0;font-size:11px" id="detail-empty">段をクリックして詳細表示</div>
-      <div id="detail-content" style="display:none;flex-direction:column;gap:7px"></div>
+      <div class="detail-inner" style="display:flex;flex-direction:column;gap:8px;flex:1">
+        <div style="color:var(--text-tertiary);text-align:center;padding:32px 0;font-size:11px" id="detail-empty">段をクリックして詳細表示</div>
+        <div id="detail-content" style="display:none;flex-direction:column;gap:7px"></div>
+      </div>
     </div>
   </div>
 </div>

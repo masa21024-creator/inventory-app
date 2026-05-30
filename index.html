@@ -1946,6 +1946,18 @@ window.fbLoadOrderRequests = async function() {
 // リアルタイムリスナー：inventory変更を自動反映
 window._lastSaveTime = 0;
 window.startRealtimeSync = function() {
+  // historyのリアルタイムリスナー
+  onValue(ref(db, 'history'), function(snap) {
+    if (!snap.exists()) return;
+    var raw = snap.val();
+    var twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    S.history = Object.values(raw)
+      .filter(function(h){ return new Date(h.ts) >= twoYearsAgo; })
+      .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+    var activePanel = document.querySelector('.panel.active');
+    if (activePanel && activePanel.id === 'panel-history' && typeof renderHistory === 'function') renderHistory();
+  });
   onValue(ref(db, 'inventory'), function(snap) {
     if (!snap.exists()) return;
     var d = snap.val();

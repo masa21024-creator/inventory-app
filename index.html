@@ -1680,7 +1680,7 @@ function showToast(msg, type='success', duration=2200){
   el._timer = setTimeout(()=>{ el.classList.remove('show'); }, duration);
 }
 
-window.addEventListener('load',()=>{if(sessionStorage.getItem('inv_auth')!=='1')return;window._fbReady.then(function(){startRealtimeSync();fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();});});document.getElementById('ni-room').addEventListener('change',updateShelfSel);document.getElementById('ni-shelf').addEventListener('change',updateTierSel);});
+window.addEventListener('load',()=>{if(sessionStorage.getItem('inv_auth')!=='1')return;window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();startRealtimeSync();});});});document.getElementById('ni-room').addEventListener('change',updateShelfSel);document.getElementById('ni-shelf').addEventListener('change',updateTierSel);});
 
 
 
@@ -1820,7 +1820,7 @@ function clearCompletedOrders() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('login-error').style.display='none';
       setTimeout(function(){
-        window._fbReady.then(function(){startRealtimeSync();fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();});});
+        window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();});});});
         document.getElementById('ni-room').addEventListener('change',updateShelfSel);
         document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
       }, 50);
@@ -1904,15 +1904,14 @@ window.fbLoad = async function() {
 };
 window.fbSave = async function() {
   try {
-    window._fbSaving = true;
+    window._lastSaveTime = Date.now();
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
       items: S.items, objects: S.objects || [],
       orderRequested: window._orderRequested || {}
     });
-    setTimeout(function(){ window._fbSaving = false; }, 500);
-  } catch(e) { console.error('fbSave error:', e); window._fbSaving = false; }
+  } catch(e) { console.error('fbSave error:', e); }
 };
 window.fbAddHistory = async function(record) {
   try { await push(ref(db, 'history'), record); }
@@ -1946,54 +1945,53 @@ window.fbLoadOrderRequests = async function() {
   } catch(e) { console.error('fbLoadOrderRequests error:', e); }
 };
 // リアルタイムリスナー：inventory変更を自動反映
+window._lastSaveTime = 0;
 window.startRealtimeSync = function() {
   onValue(ref(db, 'inventory'), function(snap) {
     if (!snap.exists()) return;
     var d = snap.val();
-    // 自分がfbSave中は無視（ループ防止）
-    if (window._fbSaving) return;
-    if (d.rooms && d.rooms.length) S.rooms = d.rooms;
-    if (d.shelves && d.shelves.length) S.shelves = d.shelves;
-    if (d.categories && d.categories.length) S.categories = d.categories;
-    if (d.items && d.items.length) S.items = d.items.map(function(i){
-      return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
-    });
-    if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
-      return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
-    });
+    // 自分がsaveした直後1秒はitems/rooms/shelves更新をスキップ（表示ちらつき防止）
+    var now = Date.now();
+    var skipItems = (now - window._lastSaveTime) < 1000;
+    if (!skipItems) {
+      if (d.rooms && d.rooms.length) S.rooms = d.rooms;
+      if (d.shelves && d.shelves.length) S.shelves = d.shelves;
+      if (d.categories && d.categories.length) S.categories = d.categories;
+      if (d.items && d.items.length) S.items = d.items.map(function(i){
+        return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+      });
+      if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
+        return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
+      });
+    }
+    // orderRequestedは常に処理（スマホ依頼をリアルタイム反映）
     if (d.orderRequested) {
       window._orderRequested = d.orderRequested;
-      var changed = false;
       Object.keys(d.orderRequested).forEach(function(itemId) {
         var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
         if (!exists) {
           var item = S.items.find(function(i){ return i.id === itemId; });
-          if (item) {
-            orderRequests.push({
-              id: 'req-' + itemId + '-' + Date.now(),
-              itemId: itemId, itemName: item.name,
-              status: 'pending',
-              requestedAt: new Date().toISOString(),
-              stockAtRequest: item.stock
-            });
-            changed = true;
-          }
-        }
-      });
-      // 対応完了でorderRequestedから消えた場合はdoneにする
-      orderRequests.forEach(function(r) {
-        if (r.status !== 'done' && !d.orderRequested[r.itemId]) {
-          // orderRequestedから消えた＝PC側で完了処理済み、そのまま維持
+          var itemName = item ? item.name : (d.items||[]).filter(function(i){ return i.id === itemId; }).map(function(i){ return i.name; })[0] || itemId;
+          orderRequests.push({
+            id: 'req-' + itemId + '-' + Date.now(),
+            itemId: itemId,
+            itemName: itemName,
+            status: 'pending',
+            requestedAt: new Date().toISOString(),
+            stockAtRequest: item ? item.stock : 0
+          });
         }
       });
     }
     // 表示を更新
-    if (typeof renderSummary === 'function') renderSummary();
-    if (typeof drawMap === 'function') drawMap();
+    if (!skipItems) {
+      if (typeof renderSummary === 'function') renderSummary();
+      if (typeof drawMap === 'function') drawMap();
+      var activePanel = document.querySelector('.panel.active');
+      if (activePanel && activePanel.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
+      if (activePanel && activePanel.id === 'panel-settings' && typeof renderSettings === 'function') renderSettings();
+    }
     if (typeof renderOrderList === 'function') renderOrderList();
-    var activePanel = document.querySelector('.panel.active');
-    if (activePanel && activePanel.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
-    if (activePanel && activePanel.id === 'panel-settings' && typeof renderSettings === 'function') renderSettings();
   });
 };
 window._fbResolve();

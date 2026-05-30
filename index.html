@@ -1819,11 +1819,15 @@ function clearCompletedOrders() {
       if(remember){ localStorage.setItem(LKEY,'1'); } else { localStorage.removeItem(LKEY); }
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('login-error').style.display='none';
-      setTimeout(function(){
-        window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();});});});
-        document.getElementById('ni-room').addEventListener('change',updateShelfSel);
-        document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
-      }, 50);
+      window._fbReady.then(function(){
+        fbLoad().then(function(){
+          fbLoadHistory().then(function(){
+            initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();
+          });
+        });
+      });
+      document.getElementById('ni-room').addEventListener('change',updateShelfSel);
+      document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
     } else {
       document.getElementById('login-error').style.display='block';
       document.getElementById('login-pass').value='';

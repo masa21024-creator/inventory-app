@@ -1920,7 +1920,7 @@ window.fbLoad = async function() {
 };
 window.fbSave = async function() {
   try {
-    window._lastSaveTime = Date.now();
+    window._lastSaveTime = Date.now(); // 2秒間は自分のsave由来のonValueを無視
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
@@ -1967,13 +1967,18 @@ window.startRealtimeSync = function() {
   if (window._syncStarted) return;
   window._syncStarted = true;
   // inventoryのみリアルタイム監視（historyは重いので起動時のみ読み込み）
+  // inventoryをリアルタイム監視
+  // debounce: 連続更新をまとめて処理（固まり防止）
+  var _syncTimer = null;
   onValue(ref(db, 'inventory'), function(snap) {
     if (!snap.exists()) return;
     var d = snap.val();
-    // 自分がsaveした直後1秒はitems/rooms/shelves更新をスキップ（表示ちらつき防止）
-    var now = Date.now();
-    var skipItems = (now - window._lastSaveTime) < 1000;
-    if (!skipItems) {
+    // 自分のsaveは無視
+    if ((Date.now() - window._lastSaveTime) < 2000) return;
+    // debounce: 500ms以内の連続更新はまとめる
+    if (_syncTimer) clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(function() {
+      // データ更新
       if (d.rooms && d.rooms.length) S.rooms = d.rooms;
       if (d.shelves && d.shelves.length) S.shelves = d.shelves;
       if (d.categories && d.categories.length) S.categories = d.categories;
@@ -1983,37 +1988,34 @@ window.startRealtimeSync = function() {
       if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
         return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
       });
-    }
-    // orderRequestedは常に処理（スマホ依頼をリアルタイム反映）
-    if (d.orderRequested) {
-      window._orderRequested = d.orderRequested;
-      Object.keys(d.orderRequested).forEach(function(itemId) {
-        var item = S.items.find(function(i){ return i.id === itemId; });
-        // PC発注依頼リストに追加（在庫超えでも残す）
-        var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
-        if (!exists) {
-          var itemName = item ? item.name : (d.items||[]).filter(function(i){ return i.id === itemId; }).map(function(i){ return i.name; })[0] || itemId;
-          orderRequests.push({
-            id: 'req-' + itemId + '-' + Date.now(),
-            itemId: itemId,
-            itemName: itemName,
-            status: 'pending',
-            requestedAt: new Date().toISOString(),
-            stockAtRequest: item ? item.stock : 0
-          });
-        }
-      });
-    }
-    // 表示を更新
-    if (!skipItems) {
+      // orderRequested処理
+      if (d.orderRequested) {
+        window._orderRequested = d.orderRequested;
+        Object.keys(d.orderRequested).forEach(function(itemId) {
+          var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
+          if (!exists) {
+            var item = S.items.find(function(i){ return i.id === itemId; });
+            var itemName = item ? item.name : (d.items||[]).filter(function(i){ return i.id === itemId; }).map(function(i){ return i.name; })[0] || itemId;
+            orderRequests.push({
+              id: 'req-' + itemId + '-' + Date.now(),
+              itemId: itemId, itemName: itemName,
+              status: 'pending',
+              requestedAt: new Date().toISOString(),
+              stockAtRequest: item ? item.stock : 0
+            });
+          }
+        });
+      }
+      // 表示更新（アクティブなパネルのみ）
       if (typeof renderSummary === 'function') renderSummary();
-      if (typeof resizeCanvas === 'function' && canvas) resizeCanvas();
       if (typeof drawMap === 'function') drawMap();
-      var activePanel = document.querySelector('.panel.active');
-      if (activePanel && activePanel.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
-      if (activePanel && activePanel.id === 'panel-settings' && typeof renderSettings === 'function') renderSettings();
-    }
-    if (typeof renderOrderList === 'function') renderOrderList();
+      if (typeof renderOrderList === 'function') renderOrderList();
+      var ap = document.querySelector('.panel.active');
+      if (ap) {
+        if (ap.id==='panel-category' && typeof renderCatTree==='function') renderCatTree();
+        if (ap.id==='panel-settings' && typeof renderSettings==='function') renderSettings();
+      }
+    }, 500);
   });
 };
 window._fbResolve();

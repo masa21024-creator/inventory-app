@@ -49,11 +49,11 @@ html,body{height:100dvh;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 .panel.active{display:flex}
 
 /* マップ */
-.map-canvas-wrap{position:relative;overflow:hidden;height:75%;flex-shrink:0}
+.map-canvas-wrap{position:relative;overflow:hidden;height:70%;flex-shrink:0}
 #map-canvas{position:absolute;inset:0;width:100%;height:100%}
 
 /* 検索結果：常に25%確保・マップ縮尺不変 */
-.result-panel{display:block;background:#fff;border-top:1px solid rgba(0,0,0,0.08);overflow-y:auto;height:25%;flex-shrink:0}
+.result-panel{display:block;background:#fff;border-top:1px solid rgba(0,0,0,0.08);overflow-y:auto;height:30%;flex-shrink:0}
 .result-panel.show{display:block}
 .panel-map-inner{display:flex;flex-direction:column;height:100%}
 .result-card-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(0,0,0,0.07);position:sticky;top:0;background:#fff}
@@ -151,12 +151,13 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
   <!-- 1行目：タイトル -->
   <div class="header" style="justify-content:space-between;align-items:center">
     <span style="font-size:16px;font-weight:700;color:var(--text-primary)"><i class="ti ti-package" style="margin-right:4px"></i>備品管理ナビ</span>
-    <button class="header-badge" id="low-badge" style="flex-shrink:0"></button>
   </div>
   <!-- 2行目：タブ -->
   <div class="tabbar">
     <button class="tab active" id="tab-map"><i class="ti ti-map-2"></i>マップ</button>
     <button class="tab" id="tab-scan"><i class="ti ti-scan"></i>スキャン</button>
+    <button class="header-badge" id="low-badge" style="margin:6px 6px;flex-shrink:0;font-size:13px;padding:5px 12px"></button>
+    <button onclick="spLogout()" style="margin:6px 6px;flex-shrink:0;background:none;border:1px solid rgba(163,45,45,0.4);border-radius:12px;color:#A32D2D;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap"><i class="ti ti-logout"></i></button>
   </div>
   <div class="content">
     <!-- マップ -->
@@ -275,6 +276,13 @@ document.getElementById('toggle-pass').addEventListener('click', function() {
 if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(LKEY) === '1') {
   sessionStorage.setItem(KEY, '1');
   showApp();
+}
+
+function spLogout(){
+  if(!confirm('ログアウトしますか？'))return;
+  sessionStorage.removeItem(KEY);
+  localStorage.removeItem(LKEY);
+  location.reload();
 }
 
 // ===== アプリ初期化 =====

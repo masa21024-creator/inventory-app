@@ -368,6 +368,10 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="importCSV(event)"/>
       <button class="btn" onclick="exportCSV()" style="width:100%;margin-top:6px"><i class="ti ti-download"></i> CSVエクスポート</button>
     </div>
+    <div class="settings-sec" style="border-color:#E24B4A">
+      <h3 style="color:#A32D2D">アカウント</h3>
+      <button class="btn" onclick="doLogout()" style="width:100%;color:#A32D2D;border-color:#E24B4A;font-size:16px"><i class="ti ti-logout"></i> ログアウト</button>
+    </div>
   </div>
 </div>
 <div class="panel" id="panel-order">
@@ -1827,6 +1831,12 @@ function clearCompletedOrders() {
     }
   }
   window.doLogin = doLogin;
+  window.doLogout = function(){
+    if(!confirm('ログアウトしますか？'))return;
+    sessionStorage.removeItem(KEY);
+    localStorage.removeItem('inv_auth_local');
+    location.reload();
+  };
   window.addEventListener('load', function(){
     var saved = sessionStorage.getItem(KEY)==='1' || localStorage.getItem(LKEY)==='1';
     if(!saved){

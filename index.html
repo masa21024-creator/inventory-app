@@ -915,7 +915,7 @@ function exportHistoryCSVData(filtered){
 
 
 
-function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();}
+function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();}
 let canvas,ctx,wrap,drag=null,didDrag=false;
 function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',()=>{drag=null;});canvas.addEventListener('click',onCK);canvas.addEventListener('touchstart',onTS,{passive:false});canvas.addEventListener('touchmove',onTM,{passive:false});canvas.addEventListener('touchend',onTE);}
 function resizeCanvas(){const r=wrap.getBoundingClientRect();canvas.width=r.width;canvas.height=r.height;}
@@ -1868,7 +1868,7 @@ function clearCompletedOrders() {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, get, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 const firebaseConfig = {
   apiKey: "AIzaSyCwDAmpBXsCKRyf69gUVyTsPatgbbtT3EE",
   authDomain: "inventory-app-80426.firebaseapp.com",
@@ -1920,7 +1920,6 @@ window.fbLoad = async function() {
 };
 window.fbSave = async function() {
   try {
-    window._lastSaveTime = Date.now(); // 2秒間は自分のsave由来のonValueを無視
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
@@ -1960,63 +1959,47 @@ window.fbLoadOrderRequests = async function() {
     }
   } catch(e) { console.error('fbLoadOrderRequests error:', e); }
 };
-// リアルタイムリスナー：inventory変更を自動反映
-window._lastSaveTime = 0;
-window._syncStarted = false;
-window.startRealtimeSync = function() {
-  if (window._syncStarted) return;
-  window._syncStarted = true;
-  // inventoryのみリアルタイム監視（historyは重いので起動時のみ読み込み）
-  // inventoryをリアルタイム監視
-  // debounce: 連続更新をまとめて処理（固まり防止）
-  var _syncTimer = null;
-  onValue(ref(db, 'inventory'), function(snap) {
+// PC版での操作時にFirebaseから最新データ取得（リアルタイム監視なし）
+window.startRealtimeSync = function() {}; // 何もしない
+
+window.fbRefresh = async function() {
+  try {
+    const snap = await get(ref(db, 'inventory'));
     if (!snap.exists()) return;
-    var d = snap.val();
-    // 自分のsaveは無視
-    if ((Date.now() - window._lastSaveTime) < 2000) return;
-    // debounce: 500ms以内の連続更新はまとめる
-    if (_syncTimer) clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(function() {
-      // データ更新
-      if (d.rooms && d.rooms.length) S.rooms = d.rooms;
-      if (d.shelves && d.shelves.length) S.shelves = d.shelves;
-      if (d.categories && d.categories.length) S.categories = d.categories;
-      if (d.items && d.items.length) S.items = d.items.map(function(i){
-        return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+    const d = snap.val();
+    if (d.rooms && d.rooms.length) S.rooms = d.rooms;
+    if (d.shelves && d.shelves.length) S.shelves = d.shelves;
+    if (d.categories && d.categories.length) S.categories = d.categories;
+    if (d.items && d.items.length) S.items = d.items.map(function(i){
+      return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+    });
+    if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
+      return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
+    });
+    if (d.orderRequested) {
+      window._orderRequested = d.orderRequested;
+      Object.keys(d.orderRequested).forEach(function(itemId) {
+        var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
+        if (!exists) {
+          var item = S.items.find(function(i){ return i.id === itemId; });
+          var itemName = item ? item.name : d.items.filter(function(i){ return i.id===itemId; }).map(function(i){ return i.name; })[0] || itemId;
+          orderRequests.push({
+            id: 'req-' + itemId + '-' + Date.now(),
+            itemId: itemId, itemName: itemName,
+            status: 'pending',
+            requestedAt: new Date().toISOString(),
+            stockAtRequest: item ? item.stock : 0
+          });
+        }
       });
-      if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
-        return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
-      });
-      // orderRequested処理
-      if (d.orderRequested) {
-        window._orderRequested = d.orderRequested;
-        Object.keys(d.orderRequested).forEach(function(itemId) {
-          var exists = orderRequests.find(function(r){ return r.itemId === itemId && r.status !== 'done'; });
-          if (!exists) {
-            var item = S.items.find(function(i){ return i.id === itemId; });
-            var itemName = item ? item.name : (d.items||[]).filter(function(i){ return i.id === itemId; }).map(function(i){ return i.name; })[0] || itemId;
-            orderRequests.push({
-              id: 'req-' + itemId + '-' + Date.now(),
-              itemId: itemId, itemName: itemName,
-              status: 'pending',
-              requestedAt: new Date().toISOString(),
-              stockAtRequest: item ? item.stock : 0
-            });
-          }
-        });
-      }
-      // 表示更新（アクティブなパネルのみ）
-      if (typeof renderSummary === 'function') renderSummary();
-      if (typeof drawMap === 'function') drawMap();
-      if (typeof renderOrderList === 'function') renderOrderList();
-      var ap = document.querySelector('.panel.active');
-      if (ap) {
-        if (ap.id==='panel-category' && typeof renderCatTree==='function') renderCatTree();
-        if (ap.id==='panel-settings' && typeof renderSettings==='function') renderSettings();
-      }
-    }, 500);
-  });
+    }
+    renderSummary(); drawMap(); renderOrderList();
+    var ap = document.querySelector('.panel.active');
+    if (ap) {
+      if (ap.id==='panel-category' && typeof renderCatTree==='function') renderCatTree();
+      if (ap.id==='panel-settings' && typeof renderSettings==='function') renderSettings();
+    }
+  } catch(e) { console.error('fbRefresh error:', e); }
 };
 window._fbResolve();
 </script>

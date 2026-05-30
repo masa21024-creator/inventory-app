@@ -1680,8 +1680,10 @@ function showToast(msg, type='success', duration=2200){
   el._timer = setTimeout(()=>{ el.classList.remove('show'); }, duration);
 }
 
-window.addEventListener('load',()=>{if(sessionStorage.getItem('inv_auth')!=='1')return;window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();startRealtimeSync();});});});document.getElementById('ni-room').addEventListener('change',updateShelfSel);document.getElementById('ni-shelf').addEventListener('change',updateTierSel);});
-
+window.addEventListener('load',()=>{
+  document.getElementById('ni-room').addEventListener('change',updateShelfSel);
+  document.getElementById('ni-shelf').addEventListener('change',updateTierSel);
+});
 
 
 
@@ -1849,6 +1851,14 @@ function clearCompletedOrders() {
     } else {
       sessionStorage.setItem(KEY,'1');
       document.getElementById('login-screen').classList.add('hidden');
+      // 保存ログインの場合も初期化処理を実行
+      window._fbReady.then(function(){
+        fbLoad().then(function(){
+          fbLoadHistory().then(function(){
+            initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();startRealtimeSync();
+          });
+        });
+      });
     }
   });
 })();
@@ -1950,7 +1960,10 @@ window.fbLoadOrderRequests = async function() {
 };
 // リアルタイムリスナー：inventory変更を自動反映
 window._lastSaveTime = 0;
+window._syncStarted = false;
 window.startRealtimeSync = function() {
+  if (window._syncStarted) return;
+  window._syncStarted = true;
   // historyのリアルタイムリスナー
   onValue(ref(db, 'history'), function(snap) {
     if (!snap.exists()) return;

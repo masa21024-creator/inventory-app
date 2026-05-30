@@ -622,7 +622,7 @@ function clearManualSearch() {
 
 // ===== ピックアップ =====
 var currentPickupId = null;
-var orderRequested = {}; // 発注依頼済み商品ID管理
+var orderRequested = window._orderRequested || (window._orderRequested = {}); // 発注依頼済み商品ID管理
 
 function showPickup(item) {
   currentPickupId = item.id;
@@ -678,6 +678,7 @@ function requestOrder(item, btn) {
     b.style.borderColor = '#1D9E75';
     b.disabled = true;
   });
+  if (window.fbSaveOrderRequested) fbSaveOrderRequested();
 }
 
 function requestOrderById(btn) {
@@ -690,6 +691,7 @@ function requestOrderById(btn) {
   btn.style.color = '#1D9E75';
   btn.style.borderColor = '#1D9E75';
   btn.disabled = true;
+  if (window.fbSaveOrderRequested) fbSaveOrderRequested();
 }
 
 function chg(d) {
@@ -773,6 +775,23 @@ window.fbLoad = async function() {
       if (d.items && d.items.length) S.items = d.items.map(function(i){
         return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
       });
+      if (d.orderRequested) {
+        window._orderRequested = d.orderRequested;
+        orderRequested = window._orderRequested;
+        // 在庫が発注ラインを超えていればorderRequestedから自動削除
+        var changed = false;
+        Object.keys(orderRequested).forEach(function(itemId) {
+          var item = (d.items||[]).find(function(i){ return i.id === itemId; });
+          if (item && parseInt(item.stock) > parseInt(item.orderAt)) {
+            delete orderRequested[itemId];
+            changed = true;
+          }
+        });
+        if (changed) {
+          window._orderRequested = orderRequested;
+          if (window.fbSave) fbSave();
+        }
+      }
       if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
         return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
       });
@@ -784,7 +803,8 @@ window.fbSave = async function() {
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
-      items: S.items, objects: S.objects || []
+      items: S.items, objects: S.objects || [],
+      orderRequested: window._orderRequested || {}
     });
   } catch(e) { console.error('fbSave error:', e); }
 };
@@ -792,6 +812,7 @@ window.fbAddHistory = async function(record) {
   try { await push(ref(db, 'history'), record); }
   catch(e) { console.error('fbAddHistory error:', e); }
 };
+window.fbSaveOrderRequested = function(){ if(window.fbSave) fbSave(); };
 window.fbLoadHistory = async function() {
   try {
     const snap = await get(ref(db, 'history'));

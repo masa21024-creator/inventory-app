@@ -288,7 +288,7 @@ function spLogout(){
 // ===== アプリ初期化 =====
 function initApp() {
   bindButtons();
-  window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){renderBadge();renderRoomTabs();initMap();drawMap();});});});
+  window._fbReady.then(function(){startRealtimeSync();fbLoadHistory().then(function(){renderBadge();renderRoomTabs();initMap();drawMap();});});
 }
 
 
@@ -790,7 +790,7 @@ if (sessionStorage.getItem(KEY) === '1') {
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 const firebaseConfig = {
   apiKey: "AIzaSyCwDAmpBXsCKRyf69gUVyTsPatgbbtT3EE",
   authDomain: "inventory-app-80426.firebaseapp.com",
@@ -838,13 +838,15 @@ window.fbLoad = async function() {
 };
 window.fbSave = async function() {
   try {
+    window._fbSaving = true;
     await set(ref(db, 'inventory'), {
       rooms: S.rooms, shelves: S.shelves,
       categories: S.categories || [],
       items: S.items, objects: S.objects || [],
       orderRequested: window._orderRequested || {}
     });
-  } catch(e) { console.error('fbSave error:', e); }
+    setTimeout(function(){ window._fbSaving = false; }, 500);
+  } catch(e) { console.error('fbSave error:', e); window._fbSaving = false; }
 };
 window.fbAddHistory = async function(record) {
   try { await push(ref(db, 'history'), record); }
@@ -863,6 +865,30 @@ window.fbLoadHistory = async function() {
         .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
     }
   } catch(e) { console.error('fbLoadHistory error:', e); }
+};
+// リアルタイムリスナー：inventory変更を自動反映
+window.startRealtimeSync = function() {
+  onValue(ref(db, 'inventory'), function(snap) {
+    if (!snap.exists()) return;
+    if (window._fbSaving) return;
+    var d = snap.val();
+    if (d.rooms && d.rooms.length) S.rooms = d.rooms;
+    if (d.shelves && d.shelves.length) S.shelves = d.shelves;
+    if (d.categories && d.categories.length) S.categories = d.categories;
+    if (d.items && d.items.length) S.items = d.items.map(function(i){
+      return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+    });
+    if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
+      return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
+    });
+    if (d.orderRequested) {
+      window._orderRequested = d.orderRequested;
+      orderRequested = window._orderRequested;
+    }
+    // 表示を更新
+    if (typeof renderBadge === 'function') renderBadge();
+    if (typeof drawMap === 'function') drawMap();
+  });
 };
 window._fbResolve();
 </script>

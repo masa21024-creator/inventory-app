@@ -138,6 +138,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 /* ===== アプリ本体 ===== */
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #app.hidden{display:none}
+#app-main{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* 1行目：タイトル＋検索＋部屋選択 */
 .header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid rgba(0,0,0,0.08);flex-shrink:0;padding-top:calc(8px + env(safe-area-inset-top,0px))}
@@ -942,15 +943,22 @@ function closeLowModal() {
 
 // ===== タブ切替 =====
 function switchTab(tab) {
-  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
-  document.getElementById('panel-' + tab).classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
+  // スマホ版のパネルのみ操作（app-main内に限定）
+  var appMain = document.getElementById('app-main');
+  if (!appMain) return;
+  appMain.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  appMain.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  // スマホ版はパネルIDに-spサフィックス
+  var panelId = (tab === 'map' || tab === 'scan') ? 'panel-' + tab + '-sp' : 'panel-' + tab + '-sp';
+  var tabId = 'tab-' + tab;
+  var panel = document.getElementById(panelId);
+  var tabEl = document.getElementById(tabId);
+  if (panel) panel.classList.add('active');
+  if (tabEl) tabEl.classList.add('active');
   if (tab === 'scan') startCamera();
   else {
     stopCamera();
     if (tab === 'map' && sp_canvas) {
-      // canvasサイズを再設定してマップを再描画
       setTimeout(function() {
         var wrap = sp_canvas.parentElement;
         var r = wrap.getBoundingClientRect();
@@ -1242,7 +1250,7 @@ function showPickup(item) {
   if (inScan) {
     scanCard.classList.add('show');
     mapCard.classList.remove('show');
-    var sa = document.querySelector('#panel-scan .scroll-area');
+    var sa = document.querySelector('#panel-scan-sp .scroll-area');
     if (sa) sa.scrollTop = 0;
   } else { mapCard.classList.add('show'); scanCard.classList.remove('show'); }
   [mapCard, scanCard].forEach(function(card) {

@@ -985,8 +985,6 @@ function onSearch(){
   drawMap();
 }
 function showSearchResults(items){
-  const dp=document.getElementById('detail-panel');
-  dp.classList.remove('hidden');
   document.getElementById('detail-empty').style.display='none';
   const dc=document.getElementById('detail-content');
   dc.style.display='flex';dc.innerHTML='';
@@ -1997,6 +1995,7 @@ window.startRealtimeSync = function() {
     // 表示を更新
     if (!skipItems) {
       if (typeof renderSummary === 'function') renderSummary();
+      if (typeof resizeCanvas === 'function' && canvas) resizeCanvas();
       if (typeof drawMap === 'function') drawMap();
       var activePanel = document.querySelector('.panel.active');
       if (activePanel && activePanel.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();

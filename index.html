@@ -139,6 +139,10 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <input class="login-input" type="password" id="login-pass" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;box-sizing:border-box;padding-right:44px"/>
       <button type="button" onclick="var i=document.getElementById('login-pass');if(i.type==='password'){i.type='text';this.textContent='🙈';}else{i.type='password';this.textContent='👁';}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;padding:0;line-height:1">👁</button>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer;margin-top:2px">
+      <input type="checkbox" id="login-remember" style="width:16px;height:16px;cursor:pointer"/>
+      パスワードを保存する
+    </label>
     <button class="login-btn" onclick="doLogin()">ログイン</button>
     <span class="login-error" id="login-error">パスワードが違います</span>
   </div>
@@ -1802,14 +1806,15 @@ function clearCompletedOrders() {
 
 // ===== ログイン認証 =====
 (function(){
-  var PASS='sysmet1033', KEY='inv_auth';
+  var PASS='sysmet1033', KEY='inv_auth', LKEY='inv_auth_local';
   function doLogin(){
     var val=document.getElementById('login-pass').value;
     if(val===PASS){
       sessionStorage.setItem(KEY,'1');
+      var remember=document.getElementById('login-remember').checked;
+      if(remember){ localStorage.setItem(LKEY,'1'); } else { localStorage.removeItem(LKEY); }
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('login-error').style.display='none';
-      // PC版初期化
       setTimeout(function(){
         window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){initCanvas();renderSummary();renderRoomTabs();drawMap();renderOrderList();});});});
         document.getElementById('ni-room').addEventListener('change',updateShelfSel);
@@ -1823,10 +1828,12 @@ function clearCompletedOrders() {
   }
   window.doLogin = doLogin;
   window.addEventListener('load', function(){
-    if(sessionStorage.getItem(KEY)!=='1'){
+    var saved = sessionStorage.getItem(KEY)==='1' || localStorage.getItem(LKEY)==='1';
+    if(!saved){
       document.getElementById('login-screen').classList.remove('hidden');
       setTimeout(function(){document.getElementById('login-pass').focus();},100);
     } else {
+      sessionStorage.setItem(KEY,'1');
       document.getElementById('login-screen').classList.add('hidden');
     }
   });

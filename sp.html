@@ -45,15 +45,15 @@ html,body{height:100dvh;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 .tab.active{color:#185FA5;border-bottom-color:#185FA5;background:#fff}
 
 .content{flex:1;overflow:hidden}
-.panel{display:none;height:100%;flex-direction:column;overflow:hidden}
+.panel{display:none;height:100%;flex-direction:column;overflow:hidden;flex:1}
 .panel.active{display:flex}
 
 /* マップ */
-.map-canvas-wrap{position:relative;overflow:hidden;flex:1;min-height:0}
+.map-canvas-wrap{position:relative;overflow:hidden;height:75%;flex-shrink:0}
 #map-canvas{position:absolute;inset:0;width:100%;height:100%}
 
-/* 検索結果：3件まで縮む、4件以上は25%固定スクロール */
-.result-panel{display:none;background:#fff;border-top:2px solid #185FA5;overflow-y:auto;max-height:25%}
+/* 検索結果：常に25%確保・マップ縮尺不変 */
+.result-panel{display:block;background:#fff;border-top:1px solid rgba(0,0,0,0.08);overflow-y:auto;height:25%;flex-shrink:0}
 .result-panel.show{display:block}
 .panel-map-inner{display:flex;flex-direction:column;height:100%}
 .result-card-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(0,0,0,0.07);position:sticky;top:0;background:#fff}
@@ -137,6 +137,10 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
       <input class="login-input" type="password" id="login-pass" placeholder="パスワード"/>
       <button type="button" class="toggle-pass-btn" id="toggle-pass">👁</button>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer;margin-top:2px">
+      <input type="checkbox" id="login-remember" style="width:16px;height:16px;cursor:pointer"/>
+      パスワードを保存する
+    </label>
     <button class="login-btn" id="login-btn">ログイン</button>
     <span class="login-error" id="login-error">パスワードが違います</span>
   </div>
@@ -226,13 +230,20 @@ const S={rooms:[{id:'r1',name:'第1会議室'},{id:'r2',name:'第2会議室'},{i
 // ===== ログイン =====
 const PASS = 'sysmet1033';
 const KEY = 'inv_auth_sp';
+const LKEY = 'inv_auth_sp_local';
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
 
 function doLogin() {
   var val = document.getElementById('login-pass').value;
   if (val === PASS) {
     sessionStorage.setItem(KEY, '1');
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+    var remember = document.getElementById('login-remember') && document.getElementById('login-remember').checked;
+    if (remember) { localStorage.setItem(LKEY, '1'); } else { localStorage.removeItem(LKEY); }
+    showApp();
     initApp();
   } else {
     document.getElementById('login-error').style.display = 'block';
@@ -261,9 +272,9 @@ document.getElementById('toggle-pass').addEventListener('click', function() {
 });
 
 // 起動時チェック
-if (sessionStorage.getItem(KEY) === '1') {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(LKEY) === '1') {
+  sessionStorage.setItem(KEY, '1');
+  showApp();
 }
 
 // ===== アプリ初期化 =====
@@ -497,18 +508,6 @@ function clearSearch() {
   document.getElementById('search-input').value = '';
   highlightIds = []; drawMap();
   document.getElementById('result-card').classList.remove('show');
-  // result-panel非表示後にcanvasサイズを再計算
-  setTimeout(function() {
-    if (sp_canvas) {
-      var wrap = sp_canvas.parentElement;
-      var r = wrap.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        sp_canvas.width = r.width;
-        sp_canvas.height = r.height;
-        drawMap();
-      }
-    }
-  }, 50);
 }
 
 function showResultCard(titleOrItems, items, showLoc) {
@@ -546,18 +545,6 @@ function showResultCard(titleOrItems, items, showLoc) {
     });
   }
   document.getElementById('result-card').classList.add('show');
-  // result-panel表示後にcanvasサイズを再計算してタッチ判定を更新
-  setTimeout(function() {
-    if (sp_canvas) {
-      var wrap = sp_canvas.parentElement;
-      var r = wrap.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        sp_canvas.width = r.width;
-        sp_canvas.height = r.height;
-        drawMap();
-      }
-    }
-  }, 50);
 }
 
 // ===== カメラ =====

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>在庫管理（スマホ）</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;font-size:14px;background:#f0ede8;color:#1a1a1a}
+
+/* ===== ログイン画面 ===== */
+#login-screen{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999}
+#login-screen.hidden{display:none}
+.login-box{background:#fff;border-radius:16px;padding:40px 32px;width:300px;display:flex;flex-direction:column;gap:16px;align-items:center;box-shadow:0 8px 40px rgba(0,0,0,0.3)}
+.login-box h2{font-size:18px;font-weight:700}
+.login-box p{font-size:13px;color:#888;text-align:center}
+.login-input-wrap{position:relative;width:100%}
+.login-input{width:100%;padding:12px 44px 12px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;outline:none}
+.login-input:focus{border-color:#185FA5}
+.toggle-pass-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1}
+.login-btn{width:100%;padding:14px;background:#185FA5;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+.login-error{font-size:13px;color:#E24B4A;display:none}
+
+/* ===== アプリ本体 ===== */
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#app.hidden{display:none}
+
+/* 1行目：タイトル＋検索＋部屋選択 */
+.header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid rgba(0,0,0,0.08);flex-shrink:0;padding-top:calc(8px + env(safe-area-inset-top,0px))}
+.header h1{font-size:14px;font-weight:700;white-space:nowrap}
+.header-badge{font-size:11px;background:#FCEBEB;color:#A32D2D;border-radius:12px;padding:3px 8px;font-weight:700;display:none;white-space:nowrap;cursor:pointer;border:none}
+.header-badge:active{background:#f8d7d7}
+.header-search{flex:1;padding:7px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;outline:none;background:#f5f5f3;min-width:0}
+.header-search:focus{border-color:#185FA5}
+.header-search-btn{padding:7px 10px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.header-room{padding:7px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:12px;outline:none;background:#f5f5f3;color:#333;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.header-room:focus{border-color:#185FA5}
+
+/* 2行目：タブ */
+.tabbar{position:relative;background:#f8f8f8;border-bottom:2px solid rgba(0,0,0,0.1);display:flex;z-index:50;flex-shrink:0}
+.tab{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;padding:10px 4px;font-size:13px;font-weight:600;color:#999;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;transition:all .15s;letter-spacing:.02em}
+.tab i{font-size:18px}
+.tab.active{color:#185FA5;border-bottom-color:#185FA5;background:#fff}
+
+.content{flex:1;overflow:hidden}
+.panel{display:none;height:100%;flex-direction:column;overflow:hidden}
+.panel.active{display:flex}
+
+/* マップ */
+.map-canvas-wrap{position:relative;overflow:hidden;flex:1}
+#map-canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* 検索結果：3件まで縮む、4件以上は30%固定スクロール */
+.result-panel{display:none;background:#fff;border-top:2px solid #185FA5;overflow-y:auto;max-height:30%}
+.result-panel.show{display:block}
+.result-card-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(0,0,0,0.07);position:sticky;top:0;background:#fff}
+.result-card-head span{font-size:12px;font-weight:700}
+.result-card-close{border:none;background:none;font-size:22px;color:#aaa;cursor:pointer;padding:0 4px}
+.result-item{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.result-item:last-child{border-bottom:none}
+.rdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.result-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-loc{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-stock{font-size:12px;font-weight:700;flex-shrink:0}
+
+/* 要発注モーダル */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:16px 16px 0 0;width:100%;max-height:70vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.08);position:sticky;top:0;background:#fff}
+.modal-head h3{font-size:15px;font-weight:700;color:#A32D2D}
+.modal-close{border:none;background:none;font-size:22px;color:#aaa;cursor:pointer}
+.modal-item{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.modal-item:last-child{border-bottom:none}
+
+/* スキャン */
+.cam-wrap{position:relative;background:#000;flex-shrink:0;height:56vw;max-height:300px;overflow:hidden}
+#cam-video{width:100%;height:100%;object-fit:cover}
+.cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.cam-frame{width:65%;height:58%;border:2.5px solid rgba(255,255,255,0.9);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)}
+.cam-line{position:absolute;width:63%;height:2px;background:rgba(74,222,128,0.8);animation:scan 2s ease-in-out infinite}
+@keyframes scan{0%,100%{top:22%}50%{top:73%}}
+.scan-status{padding:9px 14px;font-size:12px;color:#555;text-align:center;background:#fff;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,0.06);min-height:38px;display:flex;align-items:center;justify-content:center}
+.scroll-area{flex:1;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
+
+/* ピックアップ */
+.pickup-card{position:absolute;bottom:10px;left:10px;right:10px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.2);padding:14px;display:none;z-index:20}
+.pickup-card.show{display:block}
+.scan-pickup-card{margin:10px 12px;background:#fff;border-radius:16px;box-shadow:0 3px 16px rgba(0,0,0,0.1);padding:16px;display:none}
+.scan-pickup-card.show{display:block}
+.pickup-name{font-size:18px;font-weight:700;margin-bottom:2px}
+.pickup-loc{font-size:12px;color:#888;margin-bottom:12px}
+.sbar-wrap{height:8px;background:#eee;border-radius:4px;margin-bottom:6px}
+.sbar{height:8px;border-radius:4px}
+.sbar.ok{background:#1D9E75}.sbar.warn{background:#EF9F27}.sbar.low{background:#E24B4A}
+.smeta{display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:14px}
+.qty-wrap{display:flex;align-items:center}
+.qbtn{width:54px;height:54px;font-size:30px;font-weight:300;border:1.5px solid rgba(0,0,0,0.12);background:#f5f5f3;cursor:pointer;color:#333;display:flex;align-items:center;justify-content:center}
+.qbtn:first-child{border-radius:12px 0 0 12px}
+.qbtn:last-child{border-radius:0 12px 12px 0}
+.qval{flex:1;text-align:center;font-size:24px;font-weight:700;border:1.5px solid rgba(0,0,0,0.12);border-left:none;border-right:none;padding:12px 0;background:#fff}
+
+/* 手動入力・履歴 */
+.search-box-wrap{padding:8px 12px;background:#fff;border-top:1px solid rgba(0,0,0,0.08);flex-shrink:0;position:relative}
+.search-box-inner{display:flex;gap:8px;align-items:center}
+.search-box-inner input{flex:1;padding:10px 14px;border:1.5px solid rgba(0,0,0,0.15);border-radius:10px;font-size:14px;outline:none}
+.search-box-inner button{padding:10px 14px;background:#f0ede8;color:#555;border:1.5px solid rgba(0,0,0,0.12);border-radius:10px;font-size:13px;cursor:pointer}
+.search-candidates{background:#fff;border:1.5px solid rgba(0,0,0,0.12);border-radius:10px;margin-top:6px;overflow:hidden;display:none}
+.search-candidates.show{display:block}
+.candidate-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer}
+.candidate-item:last-child{border-bottom:none}
+.candidate-item:active{background:#f0ede8}
+.cand-name{font-size:13px;font-weight:600;flex:1}
+.cand-code{font-size:11px;color:#aaa}
+.cand-stock{font-size:12px;font-weight:700;flex-shrink:0}
+.log-wrap{padding:8px 12px 12px}
+.log-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+</style>
+<script>
+var _fbResolve;
+window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._fbResolve = _fbResolve; });
+</script>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="login-box">
+    <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
+    <h2>在庫管理システム</h2>
+    <p>パスワードを入力してください</p>
+    <div class="login-input-wrap">
+      <input class="login-input" type="password" id="login-pass" placeholder="パスワード"/>
+      <button type="button" class="toggle-pass-btn" id="toggle-pass">👁</button>
+    </div>
+    <button class="login-btn" id="login-btn">ログイン</button>
+    <span class="login-error" id="login-error">パスワードが違います</span>
+  </div>
+</div>
+
+<!-- アプリ本体 -->
+<div id="app" class="hidden">
+  <!-- 1行目：タイトル＋検索＋部屋選択 -->
+  <div class="header">
+    <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索"/>
+    <button class="header-search-btn" id="search-btn">検索</button>
+    <select class="header-room" id="room-select"></select>
+  </div>
+  <!-- 2行目：タブ＋要発注ボタン -->
+  <div class="tabbar">
+    <button class="tab active" id="tab-map"><i class="ti ti-map-2"></i>マップ</button>
+    <button class="tab" id="tab-scan"><i class="ti ti-scan"></i>スキャン</button>
+    <button class="header-badge" id="low-badge" style="margin:6px 8px;flex-shrink:0"></button>
+  </div>
+  <div class="content">
+    <!-- マップ -->
+    <div class="panel active" id="panel-map">
+      <div class="map-canvas-wrap">
+        <canvas id="map-canvas"></canvas>
+        <!-- ピックアップカード：マップオーバーレイ -->
+        <div class="pickup-card" id="pickup-card"></div>
+      </div>
+      <!-- 検索結果：下部固定 -->
+      <div class="result-panel" id="result-card">
+        <div class="result-card-head">
+          <span id="result-title">検索結果</span>
+          <button class="result-card-close" id="result-close">×</button>
+        </div>
+        <div id="result-list" style="flex:1;overflow-y:auto"></div>
+      </div>
+    </div>
+    <!-- スキャン -->
+    <div class="panel" id="panel-scan">
+      <div class="scan-status" id="scan-status">カメラを起動中...</div>
+      <div class="cam-wrap">
+        <video id="cam-video" playsinline muted autoplay></video>
+        <div class="cam-overlay"><div class="cam-frame"></div><div class="cam-line"></div></div>
+      </div>
+      <div class="search-box-wrap">
+        <div class="search-box-inner">
+          <input type="text" id="manual-input" placeholder="品目名またはコード" autocomplete="off"/>
+          <button id="manual-clear-btn">クリア</button>
+        </div>
+        <div class="search-candidates" id="search-candidates"></div>
+      </div>
+      <div class="scroll-area">
+        <div class="scan-pickup-card" id="scan-pickup-card"></div>
+        <div style="padding:8px 12px 0;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:.04em">本日の操作履歴</div>
+        </div>
+        <div class="log-wrap" id="log-wrap">
+          <div style="padding:12px 0;font-size:12px;color:#bbb;text-align:center">まだ操作がありません</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- 要発注モーダル -->
+<div class="modal-overlay" id="low-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>⚠ 要発注リスト</h3>
+      <button class="modal-close" id="low-modal-close">×</button>
+    </div>
+    <div id="low-modal-list"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ===== データ =====
+const S={rooms:[{id:'r1',name:'第1会議室'},{id:'r2',name:'第2会議室'},{id:'r3',name:'バックヤード'}],shelves:[{id:'s1',roomId:'r1',name:'棚A',x:8,y:10,w:18,h:75,tiers:3},{id:'s2',roomId:'r1',name:'棚B',x:32,y:10,w:18,h:55,tiers:2},{id:'s3',roomId:'r2',name:'キャビネット',x:10,y:15,w:22,h:65,tiers:3},{id:'s4',roomId:'r3',name:'ラックL',x:5,y:5,w:16,h:80,tiers:4},{id:'s5',roomId:'r3',name:'ラックR',x:25,y:5,w:16,h:80,tiers:4},{id:'s6',roomId:'r3',name:'棚C',x:45,y:10,w:18,h:50,tiers:2}],categories:['機器/気象観測/気象伝送装置','機器/気象観測/温湿度センサー','機器/気象観測/風速計','機器/水質計測/pH計','機器/水質計測/濁度計','消耗品/文具','消耗品/紙類','消耗品/清掃用品','消耗品/飲食'],items:[{id:'i1',name:'コピー用紙A4',code:'CP-001',shelfId:'s1',tier:1,cat:'消耗品/紙類',orderUrl:'https://example.com/cp-a4',stock:8,max:30,orderAt:10,unitPrice:0},{id:'i2',name:'コピー用紙A3',code:'CP-002',shelfId:'s1',tier:1,cat:'消耗品/紙類',orderUrl:'https://example.com/cp-a3',stock:2,max:10,orderAt:3,unitPrice:0},{id:'i3',name:'ボールペン(黒)',code:'BP-001',shelfId:'s1',tier:2,cat:'消耗品/文具',orderUrl:'',stock:25,max:50,orderAt:10,unitPrice:0},{id:'i4',name:'ボールペン(赤)',code:'BP-002',shelfId:'s1',tier:2,cat:'消耗品/文具',orderUrl:'',stock:5,max:30,orderAt:10,unitPrice:0},{id:'i5',name:'付箋(大)',code:'ST-001',shelfId:'s1',tier:3,cat:'消耗品/文具',orderUrl:'',stock:3,max:20,orderAt:5,unitPrice:0},{id:'i6',name:'ホッチキス',code:'SK-001',shelfId:'s2',tier:1,cat:'消耗品/文具',orderUrl:'',stock:15,max:15,orderAt:3,unitPrice:0},{id:'i7',name:'ホッチキス針',code:'SK-002',shelfId:'s2',tier:2,cat:'消耗品/文具',orderUrl:'',stock:2,max:20,orderAt:5,unitPrice:0},{id:'i8',name:'クリアファイル',code:'CF-001',shelfId:'s3',tier:1,cat:'消耗品/文具',orderUrl:'',stock:40,max:100,orderAt:20,unitPrice:0},{id:'i9',name:'マジック(黒)',code:'MK-001',shelfId:'s3',tier:2,cat:'消耗品/文具',orderUrl:'',stock:6,max:20,orderAt:5,unitPrice:0},{id:'i10',name:'消しゴム',code:'ER-001',shelfId:'s3',tier:3,cat:'消耗品/文具',orderUrl:'',stock:1,max:30,orderAt:5,unitPrice:0},{id:'i11',name:'トイレットペーパー',code:'TP-001',shelfId:'s4',tier:1,cat:'消耗品/清掃用品',orderUrl:'https://example.com/tp',stock:24,max:48,orderAt:12,unitPrice:0},{id:'i12',name:'ティッシュ',code:'TI-001',shelfId:'s4',tier:2,cat:'消耗品/清掃用品',orderUrl:'',stock:4,max:20,orderAt:6,unitPrice:0},{id:'i13',name:'ゴミ袋(大)',code:'GB-001',shelfId:'s4',tier:3,cat:'消耗品/清掃用品',orderUrl:'',stock:8,max:30,orderAt:10,unitPrice:0},{id:'i14',name:'ゴミ袋(小)',code:'GB-002',shelfId:'s4',tier:4,cat:'消耗品/清掃用品',orderUrl:'',stock:2,max:30,orderAt:10,unitPrice:0},{id:'i15',name:'コーヒー豆',code:'CF-002',shelfId:'s5',tier:1,cat:'消耗品/飲食',orderUrl:'',stock:3,max:10,orderAt:3,unitPrice:0},{id:'i16',name:'砂糖',code:'SG-001',shelfId:'s5',tier:2,cat:'消耗品/飲食',orderUrl:'',stock:5,max:10,orderAt:3,unitPrice:0},{id:'i17',name:'紙コップ',code:'PC-001',shelfId:'s5',tier:3,cat:'消耗品/飲食',orderUrl:'',stock:60,max:100,orderAt:20,unitPrice:0},{id:'i18',name:'輪ゴム',code:'RB-001',shelfId:'s5',tier:4,cat:'消耗品/文具',orderUrl:'',stock:10,max:20,orderAt:5,unitPrice:0},{id:'i19',name:'テープ',code:'TP-002',shelfId:'s6',tier:1,cat:'消耗品/文具',orderUrl:'',stock:3,max:10,orderAt:4,unitPrice:0},{id:'i20',name:'両面テープ',code:'DT-001',shelfId:'s6',tier:2,cat:'消耗品/文具',orderUrl:'',stock:1,max:10,orderAt:3,unitPrice:0},{id:'i21',name:'温湿度センサーAS-100',code:'AS-100',shelfId:'s3',tier:1,cat:'機器/気象観測/温湿度センサー',orderUrl:'https://example.com/as100',stock:4,max:10,orderAt:2,unitPrice:0},{id:'i22',name:'気象伝送装置TX-200',code:'TX-200',shelfId:'s3',tier:2,cat:'機器/気象観測/気象伝送装置',orderUrl:'https://example.com/tx200',stock:1,max:5,orderAt:1,unitPrice:0},{id:'i23',name:'pH計PC-300',code:'PC-300',shelfId:'s4',tier:1,cat:'機器/水質計測/pH計',orderUrl:'',stock:2,max:6,orderAt:2,unitPrice:0}],currentRoom:'r1',selectedTierKey:null,editMode:false,highlightIds:[],selectedCatPath:null,currentListType:null,urlEditItemId:null,objects:[{id:'o1',roomId:'r1',label:'入口',note:'',color:'#4CAF50',x:70,y:2,w:15,h:8},{id:'o2',roomId:'r1',label:'机',note:'会議用テーブル',color:'#5B8DEF',x:55,y:20,w:22,h:30},{id:'o3',roomId:'r3',label:'入口',note:'',color:'#4CAF50',x:80,y:40,w:12,h:8}],editingObjectId:null,history:[
+    {id:'demo1',ts:new Date().toISOString(),itemId:'i1',itemName:'コピー用紙A4',itemCode:'CP-001',cat:'消耗品/紙類',action:'入庫',diff:5,prevStock:3,newStock:8,unitPrice:500,location:'第1会議室 › 棚A › 上段'},
+    {id:'demo2',ts:new Date(Date.now()-3600000).toISOString(),itemId:'i3',itemName:'ボールペン(黒)',itemCode:'BP-001',cat:'消耗品/文具',action:'出庫',diff:-2,prevStock:27,newStock:25,unitPrice:120,location:'第1会議室 › 棚A › 2段目'}
+  ]};
+
+// ===== ログイン =====
+const PASS = 'sysmet1033';
+const KEY = 'inv_auth_sp';
+
+function doLogin() {
+  var val = document.getElementById('login-pass').value;
+  if (val === PASS) {
+    sessionStorage.setItem(KEY, '1');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    initApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+// ボタンイベント（click + touchend 両方）
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('login-btn').addEventListener('touchend', function(e) {
+  e.preventDefault();
+  doLogin();
+});
+
+// Enterキー対応
+document.getElementById('login-pass').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+// パスワード表示切り替え
+document.getElementById('toggle-pass').addEventListener('click', function() {
+  var i = document.getElementById('login-pass');
+  if (i.type === 'password') { i.type = 'text'; this.textContent = '🙈'; }
+  else { i.type = 'password'; this.textContent = '👁'; }
+});
+
+// 起動時チェック
+if (sessionStorage.getItem(KEY) === '1') {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+
+// ===== アプリ初期化 =====
+function initApp() {
+  bindButtons();
+  window._fbReady.then(function(){fbLoad().then(function(){fbLoadHistory().then(function(){renderBadge();renderRoomTabs();initMap();drawMap();});});});
+}
+
+
+// ===== ボタンバインド =====
+function bindButtons() {
+  document.getElementById('search-btn').addEventListener('click', doSearch);
+  document.getElementById('search-input').addEventListener('keydown', function(e) { if(e.key==='Enter') doSearch(); });
+  document.getElementById('search-input').addEventListener('input', function() { if(!this.value) clearSearch(); });
+  document.getElementById('result-close').addEventListener('click', clearSearch);
+  document.getElementById('manual-clear-btn').addEventListener('click', clearManualSearch);
+  document.getElementById('manual-input').addEventListener('input', onManualInput);
+  document.getElementById('tab-map').addEventListener('click', function() { switchTab('map'); });
+  document.getElementById('tab-scan').addEventListener('click', function() { switchTab('scan'); });
+  document.getElementById('room-select').addEventListener('change', function() { selectRoom(this.value); });
+  document.getElementById('low-badge').addEventListener('click', openLowModal);
+  document.getElementById('low-modal-close').addEventListener('click', closeLowModal);
+  document.getElementById('low-modal').addEventListener('click', function(e) { if(e.target===this) closeLowModal(); });
+}
+
+// ===== ステータス =====
+function sc(i) {
+  if (i.stock <= i.orderAt) return 'low';
+  if (i.stock / i.max < 0.4) return 'warn';
+  return 'ok';
+}
+
+function renderBadge() {
+  var low = S.items.filter(function(i) { return sc(i) === 'low'; }).length;
+  var b = document.getElementById('low-badge');
+  if (low > 0) { b.textContent = '⚠ 要発注'; b.style.display = 'inline'; }
+  else { b.style.display = 'none'; }
+}
+
+function openLowModal() {
+  var items = S.items.filter(function(i) { return sc(i) === 'low'; });
+  var list = document.getElementById('low-modal-list');
+  if (!items.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">要発注品目はありません</div>';
+  } else {
+    list.innerHTML = items.map(function(item) {
+      var shelf = S.shelves.find(function(s) { return s.id === item.shelfId; });
+      var room = shelf ? S.rooms.find(function(r) { return r.id === shelf.roomId; }) : null;
+      var tl = shelf ? (item.tier===1?'上段':item.tier===shelf.tiers?'下段':(item.tier+'段目')) : '';
+      var loc = room ? (room.name + ' › ' + shelf.name + ' › ' + tl) : '';
+      var hasUrl = item.orderUrl && item.orderUrl.trim();
+      return '<div class="modal-item" data-id="' + item.id + '" style="cursor:pointer">' +
+        '<div style="width:10px;height:10px;border-radius:50%;background:#E24B4A;flex-shrink:0"></div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:600">' + item.name + '</div>' +
+          '<div style="font-size:11px;color:#888">' + loc + '</div>' +
+          '<div style="font-size:11px;color:#A32D2D;margin-top:2px">在庫: <strong>' + item.stock + '</strong>　発注点: ' + item.orderAt + '　最大: ' + item.max + '</div>' +
+        '</div>' +
+        (orderRequested[item.id]
+          ? '<button class="modal-order-btn" disabled style="margin-left:8px;padding:6px 10px;background:#E8F7F0;color:#1D9E75;border:1.5px solid #1D9E75;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0">✅ 依頼済み</button>'
+          : '<button class="modal-order-btn" data-id="' + item.id + '" onclick="event.stopPropagation();requestOrderById(this)" style="margin-left:8px;padding:6px 10px;background:#EEF4FF;color:#185FA5;border:1.5px solid #185FA5;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">📋 依頼</button>') +
+      '</div>';
+    }).join('');
+    // クリックで検索結果表示
+    list.querySelectorAll('.modal-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var itemId = this.dataset.id;
+        var item = S.items.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+        closeLowModal();
+        // マップパネルに切り替え
+        switchTab('map');
+        // 検索結果として表示
+        highlightIds = [item.id];
+        var shelf = S.shelves.find(function(s) { return s.id === item.shelfId; });
+        if (shelf && shelf.roomId !== currentRoom) { currentRoom = shelf.roomId; renderRoomTabs(); }
+        drawMap();
+        showResultCard([item], true);
+      });
+    });
+  }
+  document.getElementById('low-modal').classList.add('show');
+}
+
+function closeLowModal() {
+  document.getElementById('low-modal').classList.remove('show');
+}
+
+// ===== タブ切替 =====
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'scan') startCamera();
+  else {
+    stopCamera();
+    if (tab === 'map' && sp_canvas) {
+      // canvasサイズを再設定してマップを再描画
+      setTimeout(function() {
+        var wrap = sp_canvas.parentElement;
+        var r = wrap.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          sp_canvas.width = r.width;
+          sp_canvas.height = r.height;
+        }
+        drawMap();
+      }, 50);
+    }
+  }
+}
+
+// ===== マップ =====
+var sp_canvas, sp_ctx, currentRoom = S.rooms[0].id, highlightIds = [];
+
+function initMap() {
+  sp_canvas = document.getElementById('map-canvas');
+  sp_ctx = sp_canvas.getContext('2d');
+  var wrap = sp_canvas.parentElement;
+  function resize() {
+    var r = wrap.getBoundingClientRect();
+    sp_canvas.width = r.width;
+    sp_canvas.height = r.height;
+    drawMap();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  sp_canvas.addEventListener('click', onMapClick);
+}
+
+function renderRoomTabs() {
+  var sel = document.getElementById('room-select');
+  sel.innerHTML = S.rooms.map(function(r) {
+    return '<option value="' + r.id + '"' + (r.id === currentRoom ? ' selected' : '') + '>' + r.name + '</option>';
+  }).join('');
+}
+
+function selectRoom(id) {
+  currentRoom = id; highlightIds = [];
+  renderRoomTabs(); drawMap(); clearSearch();
+}
+
+function px(p, d) { return p / 100 * d; }
+
+function drawMap() {
+  if (!sp_canvas) return;
+  var W = sp_canvas.width, H = sp_canvas.height;
+  sp_ctx.clearRect(0, 0, W, H);
+  sp_ctx.fillStyle = '#f0ede8'; sp_ctx.fillRect(0, 0, W, H);
+  var room = S.rooms.find(function(r) { return r.id === currentRoom; });
+  if (room) { sp_ctx.font = 'bold 11px sans-serif'; sp_ctx.fillStyle = '#bbb'; sp_ctx.fillText(room.name, 8, 16); }
+  (S.objects || []).filter(function(o) { return o.roomId === currentRoom; }).forEach(function(obj) {
+    var ox=px(obj.x,W),oy=px(obj.y,H),ow=px(obj.w,W),oh=px(obj.h,H);
+    sp_ctx.save();
+    sp_ctx.globalAlpha=0.12; sp_ctx.fillStyle=obj.color;
+    sp_ctx.beginPath(); if(sp_ctx.roundRect) sp_ctx.roundRect(ox,oy,ow,oh,4); else sp_ctx.rect(ox,oy,ow,oh);
+    sp_ctx.fill(); sp_ctx.globalAlpha=1;
+    sp_ctx.strokeStyle=obj.color; sp_ctx.lineWidth=1.5; sp_ctx.setLineDash([4,3]);
+    sp_ctx.beginPath(); if(sp_ctx.roundRect) sp_ctx.roundRect(ox,oy,ow,oh,4); else sp_ctx.rect(ox,oy,ow,oh);
+    sp_ctx.stroke(); sp_ctx.setLineDash([]);
+    sp_ctx.fillStyle=obj.color; sp_ctx.font='bold 10px sans-serif'; sp_ctx.textAlign='center'; sp_ctx.textBaseline='middle';
+    sp_ctx.fillText(obj.label, ox+ow/2, oy+oh/2);
+    sp_ctx.textAlign='left'; sp_ctx.textBaseline='alphabetic'; sp_ctx.restore();
+  });
+  S.shelves.filter(function(s) { return s.roomId === currentRoom; }).forEach(function(shelf) {
+    var sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H),th=sh/shelf.tiers;
+    sp_ctx.strokeStyle='#ccc'; sp_ctx.lineWidth=1; sp_ctx.fillStyle='#fff';
+    sp_ctx.beginPath(); if(sp_ctx.roundRect) sp_ctx.roundRect(sx,sy,sw,sh,5); else sp_ctx.rect(sx,sy,sw,sh); sp_ctx.fill(); sp_ctx.stroke();
+    sp_ctx.font='bold 10px sans-serif'; sp_ctx.fillStyle='#888'; sp_ctx.textAlign='center';
+    sp_ctx.fillText(shelf.name, sx+sw/2, sy-4); sp_ctx.textAlign='left';
+    for (var t=1; t<=shelf.tiers; t++) {
+      var ty=sy+(t-1)*th;
+      var items=S.items.filter(function(i) { return i.shelfId===shelf.id && i.tier===t; });
+      var isHL=highlightIds.length>0 && items.some(function(i) { return highlightIds.includes(i.id); });
+      var fill='#f8f7f4';
+      if (items.length) {
+        var w=items.reduce(function(a,b){var o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});
+        var s2=sc(w); fill=s2==='low'?'#FCEBEB':s2==='warn'?'#FAEEDA':'#EAF3DE';
+      }
+      if (isHL) fill='#FFD600';
+      sp_ctx.fillStyle=fill; sp_ctx.fillRect(sx+1,ty+1,sw-2,th-2);
+      if(t<shelf.tiers){sp_ctx.strokeStyle='#e8e5e0';sp_ctx.lineWidth=0.5;sp_ctx.beginPath();sp_ctx.moveTo(sx+3,ty+th);sp_ctx.lineTo(sx+sw-3,ty+th);sp_ctx.stroke();}
+      var tl=t===1?'上段':t===shelf.tiers?'下段':(t+'段目');
+      sp_ctx.font='9px sans-serif'; sp_ctx.fillStyle='#bbb'; sp_ctx.textAlign='center';
+      sp_ctx.fillText(tl, sx+sw/2, ty+th/2+4); sp_ctx.textAlign='left';
+      if (items.length) {
+        var txt=items.length>1?(items.length+'品'):items[0].name.slice(0,5);
+        sp_ctx.font='8px sans-serif'; sp_ctx.fillStyle='#555'; sp_ctx.fillText(txt,sx+3,ty+12);
+        var w2=items.reduce(function(a,b){var o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});
+        sp_ctx.beginPath(); sp_ctx.arc(sx+sw-6,ty+8,3.5,0,Math.PI*2);
+        sp_ctx.fillStyle=sc(w2)==='low'?'#E24B4A':sc(w2)==='warn'?'#EF9F27':'#1D9E75'; sp_ctx.fill();
+      }
+    }
+  });
+}
+
+function onMapClick(e) {
+  var r=sp_canvas.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  var W=sp_canvas.width, H=sp_canvas.height;
+  for (var i=S.shelves.length-1; i>=0; i--) {
+    var s=S.shelves[i];
+    if (s.roomId !== currentRoom) continue;
+    var sx=px(s.x,W),sy=px(s.y,H),sw=px(s.w,W),sh=px(s.h,H);
+    if (mx>=sx && mx<=sx+sw && my>=sy && my<=sy+sh) {
+      var t=Math.min(s.tiers, Math.floor((my-sy)/(sh/s.tiers))+1);
+      var items=S.items.filter(function(i) { return i.shelfId===s.id && i.tier===t; });
+      var tl=t===1?'上段':t===s.tiers?'下段':(t+'段目');
+      highlightIds = items.map(function(i) { return i.id; });
+      drawMap();
+      showResultCard(s.name+' › '+tl, items);
+      return;
+    }
+  }
+  highlightIds = []; drawMap();
+}
+
+// ===== 検索 =====
+function doSearch() {
+  var q = document.getElementById('search-input').value.trim().toLowerCase();
+  if (!q) { clearSearch(); return; }
+  var matched = S.items.filter(function(i) { return i.name.toLowerCase().includes(q) || (i.code && i.code.toLowerCase().includes(q)); });
+  if (!matched.length) { showResultCard('一致する品目なし', []); return; }
+  highlightIds = matched.map(function(i) { return i.id; });
+  var shelf = S.shelves.find(function(s) { return s.id === matched[0].shelfId; });
+  if (shelf && shelf.roomId !== currentRoom) { currentRoom = shelf.roomId; renderRoomTabs(); }
+  drawMap();
+  showResultCard(matched, true);
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  highlightIds = []; drawMap();
+  document.getElementById('result-card').classList.remove('show');
+}
+
+function showResultCard(titleOrItems, items, showLoc) {
+  // 引数が配列の場合はタイトルなし
+  var title, list;
+  if (Array.isArray(titleOrItems)) {
+    title = ''; list = titleOrItems; showLoc = items;
+  } else {
+    title = titleOrItems; list = items;
+  }
+  var head = document.getElementById('result-title');
+  head.textContent = title;
+  head.parentElement.style.display = title ? 'flex' : 'none';
+  if (!list.length) {
+    document.getElementById('result-list').innerHTML = '<div style="padding:14px;font-size:13px;color:#aaa;text-align:center">品目なし</div>';
+  } else {
+    document.getElementById('result-list').innerHTML = list.map(function(item) {
+      var s=sc(item), c=s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75';
+      var loc = '';
+      if (showLoc) {
+        var shf=S.shelves.find(function(sh) { return sh.id===item.shelfId; });
+        var rm=shf?S.rooms.find(function(r) { return r.id===shf.roomId; }):null;
+        var tl=shf?(item.tier===1?'上段':item.tier===shf.tiers?'下段':(item.tier+'段目')):'';
+        loc = rm ? (rm.name+' › '+shf.name+' › '+tl) : '';
+      }
+      return '<div class="result-item" data-id="'+item.id+'" style="cursor:pointer"><div class="rdot" style="background:'+c+'"></div><div style="flex:1"><div class="result-name">'+item.name+'</div>'+(loc?'<div class="result-loc">'+loc+'</div>':'')+'</div><div class="result-stock" style="color:'+c+'">'+item.stock+'/'+item.max+'</div></div>';
+    }).join('');
+    // クリックでマップ上にピックアップカードをオーバーレイ表示
+    document.querySelectorAll('#result-list .result-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var item = S.items.find(function(i) { return i.id === el.dataset.id; });
+        if (!item) return;
+        showPickup(item);
+      });
+    });
+  }
+  document.getElementById('result-card').classList.add('show');
+}
+
+// ===== カメラ =====
+var scanStream = null, scanInterval = null;
+
+async function startCamera() {
+  if (scanStream) return;
+  document.getElementById('scan-status').textContent = 'カメラを起動中...';
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    var v = document.getElementById('cam-video');
+    v.srcObject = scanStream; await v.play();
+    document.getElementById('scan-status').textContent = 'バーコードをフレームに合わせてください';
+    startScanLoop();
+  } catch(e) {
+    document.getElementById('scan-status').textContent = 'カメラにアクセスできません（HTTPS環境が必要です）';
+  }
+}
+
+function stopCamera() {
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+  if (scanStream) { scanStream.getTracks().forEach(function(t) { t.stop(); }); scanStream = null; }
+}
+
+function startScanLoop() {
+  if (!('BarcodeDetector' in window)) {
+    document.getElementById('scan-status').textContent = '⚠ Chrome/Edgeをお使いください';
+    return;
+  }
+  var det = new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','itf']});
+  scanInterval = setInterval(async function() {
+    var v = document.getElementById('cam-video');
+    if (!v.videoWidth) return;
+    try {
+      var bc = await det.detect(v);
+      if (bc.length > 0) {
+        clearInterval(scanInterval); scanInterval = null;
+        handleScan(bc[0].rawValue);
+        setTimeout(startScanLoop, 1200);
+      }
+    } catch(e) {}
+  }, 400);
+}
+
+function handleScan(code) {
+  var item = S.items.find(function(i) { return i.code === code || i.name === code; });
+  if (!item) {
+    document.getElementById('scan-status').textContent = '❌ "' + code + '" — 未登録の商品です';
+    return;
+  }
+  document.getElementById('scan-status').textContent = '✅ ' + item.name;
+  showPickup(item);
+}
+
+// ===== 手動入力 =====
+function onManualInput() {
+  var q = document.getElementById('manual-input').value.trim();
+  var cands = document.getElementById('search-candidates');
+  if (!q) { cands.classList.remove('show'); cands.innerHTML = ''; return; }
+  var results = S.items.filter(function(i) { return i.code === q || i.name.toLowerCase().includes(q.toLowerCase()); });
+  if (!results.length) {
+    cands.classList.add('show');
+    cands.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:#aaa;text-align:center">該当なし</div>';
+    return;
+  }
+  cands.classList.add('show');
+  cands.innerHTML = results.map(function(item) {
+    var s=sc(item), c=s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75';
+    return '<div class="candidate-item" data-id="'+item.id+'"><div style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0"></div><div style="flex:1;min-width:0"><div class="cand-name">'+item.name+'</div>'+(item.code?'<div class="cand-code">'+item.code+'</div>':'')+'</div><div class="cand-stock" style="color:'+c+'">'+item.stock+'/'+item.max+'</div></div>';
+  }).join('');
+  cands.querySelectorAll('.candidate-item').forEach(function(el) {
+    el.addEventListener('click', function() { selectCandidate(this.dataset.id); });
+  });
+}
+
+function selectCandidate(itemId) {
+  var item = S.items.find(function(i) { return i.id === itemId; });
+  if (!item) return;
+  document.getElementById('manual-input').value = '';
+  document.getElementById('search-candidates').classList.remove('show');
+  document.getElementById('search-candidates').innerHTML = '';
+  document.getElementById('scan-status').textContent = '✅ ' + item.name;
+  showPickup(item);
+}
+
+function clearManualSearch() {
+  document.getElementById('manual-input').value = '';
+  document.getElementById('search-candidates').classList.remove('show');
+  document.getElementById('search-candidates').innerHTML = '';
+}
+
+// ===== ピックアップ =====
+var currentPickupId = null;
+var orderRequested = {}; // 発注依頼済み商品ID管理
+
+function showPickup(item) {
+  currentPickupId = item.id;
+  var shelf=S.shelves.find(function(s){return s.id===item.shelfId;});
+  var room=shelf?S.rooms.find(function(r){return r.id===shelf.roomId;}):null;
+  var tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':(item.tier+'段目')):'';
+  var s=sc(item), pct=Math.min(100,Math.round(item.stock/item.max*100));
+    var isLow = item.stock <= item.orderAt;
+  var isRequested = orderRequested[item.id] || false;
+  var orderBtnHtml = '';
+  if (isLow) {
+    if (isRequested) {
+      orderBtnHtml = '<button class="order-request-btn" disabled style="margin-top:10px;width:100%;padding:10px;background:#E8F7F0;color:#1D9E75;border:1.5px solid #1D9E75;border-radius:10px;font-size:13px;font-weight:700">✅ 依頼済み</button>';
+    } else {
+      orderBtnHtml = '<button class="order-request-btn" style="margin-top:10px;width:100%;padding:10px;background:#EEF4FF;color:#185FA5;border:1.5px solid #185FA5;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📋 発注依頼</button>';
+    }
+  }
+  var html='<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="pickup-name">'+item.name+'</div><div class="pickup-loc">'+(room?room.name+' › '+shelf.name+' › '+tl:'')+' '+(item.code?'| '+item.code:'')+'</div></div><button class="close-pickup-btn" style="border:none;background:none;font-size:20px;color:#aaa;cursor:pointer;padding:0 0 0 8px">×</button></div><div class="sbar-wrap"><div class="sbar '+s+' sbar-fill" style="width:'+pct+'%"></div></div><div class="smeta-el"><span>在庫: <strong class="qval-el">'+item.stock+'</strong> / '+item.max+'</span><span>発注点: '+item.orderAt+'</span></div><div class="qty-wrap"><button class="qbtn qbtn-minus">−</button><div class="qval">'+item.stock+'</div><button class="qbtn qbtn-plus">＋</button></div>'+orderBtnHtml;
+  var mapCard = document.getElementById('pickup-card');
+  var scanCard = document.getElementById('scan-pickup-card');
+  mapCard.innerHTML = html;
+  scanCard.innerHTML = html;
+  var inScan = document.getElementById('panel-scan').classList.contains('active');
+  if (inScan) {
+    scanCard.classList.add('show');
+    mapCard.classList.remove('show');
+    var sa = document.querySelector('#panel-scan .scroll-area');
+    if (sa) sa.scrollTop = 0;
+  } else { mapCard.classList.add('show'); scanCard.classList.remove('show'); }
+  [mapCard, scanCard].forEach(function(card) {
+    card.querySelector('.close-pickup-btn').addEventListener('click', closePickup);
+    card.querySelector('.qbtn-minus').addEventListener('click', function() { chg(-1); });
+    card.querySelector('.qbtn-plus').addEventListener('click', function() { chg(1); });
+    var orderBtn = card.querySelector('.order-request-btn');
+    if (orderBtn && !orderBtn.disabled) {
+      orderBtn.addEventListener('click', function() { requestOrder(item, this); });
+    }
+  });
+}
+
+function closePickup() {
+  document.getElementById('pickup-card').classList.remove('show');
+  document.getElementById('scan-pickup-card').classList.remove('show');
+  currentPickupId = null;
+}
+
+function requestOrder(item, btn) {
+  orderRequested[item.id] = true;
+  document.querySelectorAll('.order-request-btn').forEach(function(b) {
+    b.textContent = '✅ 依頼済み';
+    b.style.background = '#E8F7F0';
+    b.style.color = '#1D9E75';
+    b.style.borderColor = '#1D9E75';
+    b.disabled = true;
+  });
+}
+
+function requestOrderById(btn) {
+  var itemId = btn.dataset.id;
+  var item = S.items.find(function(i) { return i.id === itemId; });
+  if (!item) return;
+  orderRequested[item.id] = true;
+  btn.textContent = '✅ 依頼済み';
+  btn.style.background = '#E8F7F0';
+  btn.style.color = '#1D9E75';
+  btn.style.borderColor = '#1D9E75';
+  btn.disabled = true;
+}
+
+function chg(d) {
+  if (!currentPickupId) return;
+  var item = S.items.find(function(i) { return i.id === currentPickupId; });
+  if (!item) return;
+  item.stock = Math.max(0, item.stock + d);
+  var s=sc(item), pct=Math.min(100,Math.round(item.stock/item.max*100));
+  // 表示中の両カードを更新
+  document.querySelectorAll('.qval').forEach(function(el) { el.textContent = item.stock; });
+  document.querySelectorAll('.sbar-fill').forEach(function(el) { el.className = 'sbar ' + s + ' sbar-fill'; el.style.width = pct + '%'; });
+  document.querySelectorAll('.smeta-el').forEach(function(el) { el.innerHTML = '<span>在庫: <strong class="qval-el">'+item.stock+'</strong> / '+item.max+'</span><span>発注点: '+item.orderAt+'</span>'; });
+  var now=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  var c=s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75';
+  var ml=d>0?'+1 入庫':'-1 出庫';
+  var logWrap=document.getElementById('log-wrap');
+  var empty=logWrap.querySelector('[style*="color:#bbb"]');
+  if(empty) logWrap.innerHTML='';
+  logWrap.insertAdjacentHTML('afterbegin','<div class="log-row"><div class="ldot" style="background:'+c+'"></div><div style="flex:1"><strong>'+item.name+'</strong></div><div style="font-size:12px;color:#666">'+item.stock+'個 ('+ml+') '+now+'</div></div>');
+  renderBadge();
+
+  var shelf=S.shelves.find(function(s){return s.id===item.shelfId;});
+  var room=shelf?S.rooms.find(function(r){return r.id===shelf.roomId;}):null;
+  var tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':(item.tier+'段目')):'';
+  var loc=room?(room.name+' › '+shelf.name+' › '+tl):'';
+  var record = {
+    id: 'sp-' + Date.now(),
+    ts: new Date().toISOString(),
+    itemId: item.id,
+    itemName: item.name,
+    itemCode: item.code || '',
+    cat: item.cat || '',
+    action: d > 0 ? '入庫' : '出庫',
+    diff: d,
+    prevStock: item.stock - d,
+    newStock: item.stock,
+    unitPrice: item.unitPrice || 0,
+    location: loc
+  };
+  // 入荷で発注ラインを超えたら依頼済みリセット→ボタン非表示
+  if (d > 0 && item.stock > item.orderAt && orderRequested[item.id]) {
+    delete orderRequested[item.id];
+    showPickup(item);
+  }
+  // 在庫が発注ライン以下になったらボタン表示
+  if (d < 0 && item.stock <= item.orderAt) {
+    showPickup(item);
+  }
+}
+
+// ===== 起動時にログイン済みならアプリ初期化 =====
+if (sessionStorage.getItem(KEY) === '1') {
+  initApp();
+}
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCwDAmpBXsCKRyf69gUVyTsPatgbbtT3EE",
+  authDomain: "inventory-app-80426.firebaseapp.com",
+  databaseURL: "https://inventory-app-80426-default-rtdb.firebaseio.com",
+  projectId: "inventory-app-80426",
+  storageBucket: "inventory-app-80426.firebasestorage.app",
+  messagingSenderId: "33029894681",
+  appId: "1:33029894681:web:24d732d1782a7a12a6f088"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+window.fbLoad = async function() {
+  try {
+    const snap = await get(ref(db, 'inventory'));
+    if (snap.exists()) {
+      const d = snap.val();
+      if (d.rooms && d.rooms.length) S.rooms = d.rooms;
+      if (d.shelves && d.shelves.length) S.shelves = d.shelves;
+      if (d.categories && d.categories.length) S.categories = d.categories;
+      if (d.items && d.items.length) S.items = d.items.map(function(i){
+        return Object.assign({},i,{stock:parseInt(i.stock)||0,max:parseInt(i.max)||30,orderAt:parseInt(i.orderAt)||10,unitPrice:parseInt(i.unitPrice)||0,tier:parseInt(i.tier)||1});
+      });
+      if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
+        return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
+      });
+    }
+  } catch(e) { console.error('fbLoad error:', e); }
+};
+window.fbSave = async function() {
+  try {
+    await set(ref(db, 'inventory'), {
+      rooms: S.rooms, shelves: S.shelves,
+      categories: S.categories || [],
+      items: S.items, objects: S.objects || []
+    });
+  } catch(e) { console.error('fbSave error:', e); }
+};
+window.fbAddHistory = async function(record) {
+  try { await push(ref(db, 'history'), record); }
+  catch(e) { console.error('fbAddHistory error:', e); }
+};
+window.fbLoadHistory = async function() {
+  try {
+    const snap = await get(ref(db, 'history'));
+    if (snap.exists()) {
+      const raw = snap.val();
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      S.history = Object.values(raw)
+        .filter(function(h){ return new Date(h.ts) >= twoYearsAgo; })
+        .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+    }
+  } catch(e) { console.error('fbLoadHistory error:', e); }
+};
+window._fbResolve();
+</script>
+</body>
+</html>

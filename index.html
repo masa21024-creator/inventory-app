@@ -199,6 +199,24 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     </div>
   </div>
 </div>
+<!-- 棚編集モーダル -->
+<div class="overlay" id="shelf-edit-overlay" onclick="if(event.target===this)closeShelfEditModal()">
+  <div class="modal" style="width:320px">
+    <div class="modal-title">
+      <span><i class="ti ti-layout-rows"></i> 棚の編集</span>
+      <button class="close-btn" onclick="closeShelfEditModal()">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">棚名</div>
+    <input class="sinput" id="shelf-edit-name" style="width:100%;font-size:16px;box-sizing:border-box"/>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:8px">
+      <button class="btn" onclick="deleteShelfFromModal()" style="color:#A32D2D;border-color:#E24B4A;font-weight:600"><i class="ti ti-trash"></i> 削除</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeShelfEditModal()">キャンセル</button>
+        <button class="btn p" onclick="saveShelfEditModal()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="panel" id="panel-category">
   <div class="cat-panel">
     <div class="cat-tree" id="cat-tree"></div>
@@ -326,12 +344,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div id="room-list-set" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:200px;overflow-y:auto"></div>
       <div class="srow"><input class="sinput" id="new-room-name" placeholder="部屋名"/><button class="btn p" onclick="addRoom()">追加</button></div>
     </div>
-    <div class="settings-sec"><h3>棚の追加</h3>
-      <div id="shelf-list-set" style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px"></div>
-      <div class="srow"><select class="ssel" id="shelf-room-sel" onchange="renderShelfList()"></select><input class="sinput" id="new-shelf-name" placeholder="棚名"/><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><label style="font-size:17px;color:var(--text-secondary);white-space:nowrap">段数</label><input class="sinput" id="ns-t" type="number" value="3" min="1" style="width:52px"/></div></div>
-      <div style="font-size:16px;color:var(--text-tertiary);margin-bottom:6px">追加後はマップの「編集」ボタンで位置・サイズを調整できます</div>
-      <button class="btn p" onclick="addShelf()" style="width:100%">棚を追加</button>
-    </div>
+
     <div class="settings-sec"><h3>カテゴリ管理</h3>
       <div style="font-size:16px;color:var(--text-tertiary);margin-bottom:6px">スラッシュ区切りで階層化（例: 機器/気象観測/センサー）</div>
       <div class="srow"><input class="sinput" id="new-cat" placeholder="例: 機器/気象観測/温湿度センサー"/><button class="btn p" onclick="addCategory()">追加</button></div>
@@ -928,7 +941,15 @@ function exportHistoryCSVData(filtered){
 
 function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();}
 let canvas,ctx,wrap,drag=null,didDrag=false;
-function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',()=>{drag=null;});canvas.addEventListener('click',onCK);canvas.addEventListener('touchstart',onTS,{passive:false});canvas.addEventListener('touchmove',onTM,{passive:false});canvas.addEventListener('touchend',onTE);}
+function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',(e)=>{
+  if(S.editMode && !didDrag && drag && drag.shelf){
+    // ドラッグなしで棚をクリック→編集モーダル
+    const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const s=getShelfAt(mx,my);
+    if(s){drag=null;openShelfEditModal(s.id);return;}
+  }
+  drag=null;
+});canvas.addEventListener('click',onCK);canvas.addEventListener('touchstart',onTS,{passive:false});canvas.addEventListener('touchmove',onTM,{passive:false});canvas.addEventListener('touchend',onTE);}
 function resizeCanvas(){const r=wrap.getBoundingClientRect();canvas.width=r.width;canvas.height=r.height;}
 function px(p,d){return p/100*d;}
 function drawMap(){if(!canvas)return;const W=canvas.width,H=canvas.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#eeece8';ctx.fillRect(0,0,W,H);const room=S.rooms.find(r=>r.id===S.currentRoom);ctx.font='bold 12px sans-serif';ctx.fillStyle='#999';ctx.fillText(room?room.name:'',10,18);// オブジェクト（机・入口など）を先に描画
@@ -957,7 +978,7 @@ function drawMap(){if(!canvas)return;const W=canvas.width,H=canvas.height;ctx.cl
     ctx.beginPath();ctx.moveTo(ox+ow,oy+oh-16);ctx.lineTo(ox+ow,oy+oh);ctx.lineTo(ox+ow-16,oy+oh);ctx.closePath();ctx.fill();
   }
 });
-S.shelves.filter(s=>s.roomId===S.currentRoom).forEach(shelf=>{const sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H),th=sh/shelf.tiers;ctx.strokeStyle='#bbb';ctx.lineWidth=1;ctx.fillStyle='#fff';rrect(sx,sy,sw,sh,5,true,true);ctx.font='bold 16px sans-serif';ctx.fillStyle='#555';ctx.textAlign='center';ctx.fillText(shelf.name,sx+sw/2,sy-4);ctx.textAlign='left';for(let t=1;t<=shelf.tiers;t++){const ty=sy+(t-1)*th;const items=S.items.filter(i=>i.shelfId===shelf.id&&i.tier===t);const isSel=S.selectedTierKey===shelf.id+'-'+t;const isHL=S.highlightIds.length>0&&items.some(i=>S.highlightIds.includes(i.id));let fill='#f8f7f4';if(items.length){const w=items.reduce((a,b)=>{const o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});const s=sc(w);fill=s==='low'?'#FCEBEB':s==='warn'?'#FAEEDA':'#EAF3DE';}if(isSel)fill='#c5e0f8';if(isHL){fill='#FFD600';}ctx.fillStyle=fill;ctx.fillRect(sx+1,ty+1,sw-2,th-2);if(t<shelf.tiers){ctx.strokeStyle='#e0ddd8';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(sx+3,ty+th);ctx.lineTo(sx+sw-3,ty+th);ctx.stroke();}const tl=t===1?'上段':t===shelf.tiers?'下段':`${t}段目`;ctx.font='10px sans-serif';ctx.fillStyle='#999';ctx.textAlign='center';ctx.fillText(tl,sx+sw/2,ty+th/2+4);ctx.textAlign='left';if(items.length){const txt=items.length>1?`${items.length}品目`:items[0].name.slice(0,6);ctx.font='10px sans-serif';ctx.fillStyle='#444';ctx.fillText(txt,sx+4,ty+13);const w=items.reduce((a,b)=>{const o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});ctx.beginPath();ctx.arc(sx+sw-7,ty+9,4,0,Math.PI*2);ctx.fillStyle=sc(w)==='low'?'#E24B4A':sc(w)==='warn'?'#EF9F27':'#1D9E75';ctx.fill();}if(S.editMode&&t===shelf.tiers){ctx.fillStyle='#185FA5';ctx.beginPath();ctx.moveTo(sx+sw,sy+sh-16);ctx.lineTo(sx+sw,sy+sh);ctx.lineTo(sx+sw-16,sy+sh);ctx.closePath();ctx.fill();}}});}
+S.shelves.filter(s=>s.roomId===S.currentRoom).forEach(shelf=>{const sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H);const horiz=sw>sh;const ts=horiz?sw/shelf.tiers:sh/shelf.tiers;ctx.strokeStyle='#bbb';ctx.lineWidth=1;ctx.fillStyle='#fff';rrect(sx,sy,sw,sh,5,true,true);ctx.font='bold 16px sans-serif';ctx.fillStyle='#555';ctx.textAlign='center';ctx.fillText(shelf.name,sx+sw/2,sy-4);ctx.textAlign='left';for(let t=1;t<=shelf.tiers;t++){const tx=horiz?sx+(t-1)*ts:sx;const ty=horiz?sy:sy+(t-1)*ts;const tw=horiz?ts:sw;const th=horiz?sh:ts;const items=S.items.filter(i=>i.shelfId===shelf.id&&i.tier===t);const isSel=S.selectedTierKey===shelf.id+'-'+t;const isHL=S.highlightIds.length>0&&items.some(i=>S.highlightIds.includes(i.id));let fill='#f8f7f4';if(items.length){const w=items.reduce((a,b)=>{const o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});const s=sc(w);fill=s==='low'?'#FCEBEB':s==='warn'?'#FAEEDA':'#EAF3DE';}if(isSel)fill='#c5e0f8';if(isHL)fill='#FFD600';ctx.fillStyle=fill;ctx.fillRect(tx+1,ty+1,tw-2,th-2);if(t<shelf.tiers){ctx.strokeStyle='#e0ddd8';ctx.lineWidth=0.5;ctx.beginPath();if(horiz){ctx.moveTo(tx+ts,ty+3);ctx.lineTo(tx+ts,ty+sh-3);}else{ctx.moveTo(sx+3,ty+ts);ctx.lineTo(sx+sw-3,ty+ts);}ctx.stroke();}const tl=t===1?'上段':t===shelf.tiers?'下段':`${t}段目`;ctx.font='10px sans-serif';ctx.fillStyle='#999';ctx.textAlign='center';ctx.fillText(tl,tx+tw/2,ty+th/2+4);ctx.textAlign='left';if(items.length){const txt=items.length>1?`${items.length}品目`:items[0].name.slice(0,6);ctx.font='10px sans-serif';ctx.fillStyle='#444';ctx.fillText(txt,tx+4,ty+13);const w=items.reduce((a,b)=>{const o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});ctx.beginPath();ctx.arc(tx+tw-7,ty+9,4,0,Math.PI*2);ctx.fillStyle=sc(w)==='low'?'#E24B4A':sc(w)==='warn'?'#EF9F27':'#1D9E75';ctx.fill();}if(S.editMode&&t===shelf.tiers){ctx.fillStyle='#185FA5';ctx.beginPath();ctx.moveTo(sx+sw,sy+sh-16);ctx.lineTo(sx+sw,sy+sh);ctx.lineTo(sx+sw-16,sy+sh);ctx.closePath();ctx.fill();}}});}
 function rrect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();if(fill)ctx.fill();if(stroke)ctx.stroke();}
 function getObjectAt(mx,my){
   const W=canvas.width,H=canvas.height;
@@ -967,16 +988,16 @@ function getObjectAt(mx,my){
 }
 function isOnObjHandle(obj,mx,my){const W=canvas.width,H=canvas.height,ox=px(obj.x,W),oy=px(obj.y,H),ow=px(obj.w,W),oh=px(obj.h,H);const ex=ox+ow,ey=oy+oh;return mx>=ex-20&&mx<=ex+2&&my>=ey-20&&my<=ey+2;}
 function getShelfAt(mx,my){const W=canvas.width,H=canvas.height,sh=S.shelves.filter(s=>s.roomId===S.currentRoom);for(let i=sh.length-1;i>=0;i--){const s=sh[i],sx=px(s.x,W),sy=px(s.y,H),sw=px(s.w,W),sH=px(s.h,H);if(mx>=sx&&mx<=sx+sw&&my>=sy&&my<=sy+sH)return s;}return null;}
-function getTierAt(shelf,my){const H=canvas.height,sy=px(shelf.y,H),sh=px(shelf.h,H),th=sh/shelf.tiers;return Math.min(shelf.tiers,Math.floor((my-sy)/th)+1);}
+function getTierAt(shelf,mx,my){const W=canvas.width,H=canvas.height,sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H);const horiz=sw>sh;if(horiz){const tw=sw/shelf.tiers;return Math.min(shelf.tiers,Math.floor((mx-sx)/tw)+1);}else{const th=sh/shelf.tiers;return Math.min(shelf.tiers,Math.floor((my-sy)/th)+1);}}
 function isOnHandle(shelf,mx,my){const W=canvas.width,H=canvas.height,sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H);const ex=sx+sw,ey=sy+sh;return mx>=ex-20&&mx<=ex+2&&my>=ey-20&&my<=ey+2;}
-function onMD(e){if(!S.editMode)return;const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;didDrag=false;const obj=getObjectAt(mx,my);if(obj){drag=isOnObjHandle(obj,mx,my)?{type:'obj-resize',obj,ox:mx,oy:my,sw:obj.w,sh:obj.h}:{type:'obj-move',obj,ox:mx,oy:my,sx:obj.x,sy:obj.y};return;}const s=getShelfAt(mx,my);if(!s)return;drag=isOnHandle(s,mx,my)?{type:'resize',shelf:s,ox:mx,oy:my,sw:s.w,sh:s.h}:{type:'move',shelf:s,ox:mx,oy:my,sx:s.x,sy:s.y};}
+function onMD(e){if(!S.editMode)return;const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;didDrag=false;const obj=getObjectAt(mx,my);if(obj){drag=isOnObjHandle(obj,mx,my)?{type:'obj-resize',obj,ox:mx,oy:my,sw:obj.w,sh:obj.h}:{type:'obj-move',obj,ox:mx,oy:my,sx:obj.x,sy:obj.y};return;}const s=getShelfAt(mx,my);if(!s)return;if(isOnHandle(s,mx,my)){drag={type:'resize',shelf:s,ox:mx,oy:my,sw:s.w,sh:s.h};}else{drag={type:'move',shelf:s,ox:mx,oy:my,sx:s.x,sy:s.y};}}
 function onMM(e){const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;if(drag){didDrag=true;applyDrag(mx,my);return;}if(S.editMode){const obj=getObjectAt(mx,my);if(obj){canvas.style.cursor=isOnObjHandle(obj,mx,my)?'nwse-resize':'grab';return;}const s=getShelfAt(mx,my);canvas.style.cursor=s?(isOnHandle(s,mx,my)?'nwse-resize':'grab'):'default';}}
 function applyDrag(mx,my){const W=canvas.width,H=canvas.height;if(drag.type==='move'){drag.shelf.x=Math.max(0,Math.min(95,drag.sx+(mx-drag.ox)/W*100));drag.shelf.y=Math.max(0,Math.min(95,drag.sy+(my-drag.oy)/H*100));}else if(drag.type==='resize'){drag.shelf.w=Math.max(3,Math.min(95,drag.sw+(mx-drag.ox)/W*100));drag.shelf.h=Math.max(6,Math.min(95,drag.sh+(my-drag.oy)/H*100));}else if(drag.type==='obj-move'){drag.obj.x=Math.max(0,Math.min(95,drag.sx+(mx-drag.ox)/W*100));drag.obj.y=Math.max(0,Math.min(95,drag.sy+(my-drag.oy)/H*100));}else if(drag.type==='obj-resize'){drag.obj.w=Math.max(5,Math.min(95,drag.sw+(mx-drag.ox)/W*100));drag.obj.h=Math.max(4,Math.min(95,drag.sh+(my-drag.oy)/H*100));}drawMap();}
-function onCK(e){if(didDrag)return;const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;const obj=getObjectAt(mx,my);if(obj&&S.editMode){openObjModal(obj.id);return;}if(S.editMode)return;const s=getShelfAt(mx,my);if(!s){closeDetail();return;}selectTier(s.id+'-'+getTierAt(s,my));}
+function onCK(e){if(didDrag)return;const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;const obj=getObjectAt(mx,my);if(obj&&S.editMode){openObjModal(obj.id);return;}if(S.editMode){const s=getShelfAt(mx,my);if(s){openShelfEditModal(s.id);return;}return;}const s=getShelfAt(mx,my);if(!s){closeDetail();return;}selectTier(s.id+'-'+getTierAt(s,mx,my));}
 let touchStart=null;
 function onTS(e){e.preventDefault();const t=e.touches[0],r=canvas.getBoundingClientRect(),mx=t.clientX-r.left,my=t.clientY-r.top;touchStart={mx,my,time:Date.now()};didDrag=false;if(S.editMode){const obj=getObjectAt(mx,my);if(obj){drag=isOnObjHandle(obj,mx,my)?{type:'obj-resize',obj,ox:mx,oy:my,sw:obj.w,sh:obj.h}:{type:'obj-move',obj,ox:mx,oy:my,sx:obj.x,sy:obj.y};return;}const s=getShelfAt(mx,my);if(s)drag=isOnHandle(s,mx,my)?{type:'resize',shelf:s,ox:mx,oy:my,sw:s.w,sh:s.h}:{type:'move',shelf:s,ox:mx,oy:my,sx:s.x,sy:s.y};}}
 function onTM(e){e.preventDefault();if(!drag)return;didDrag=true;const t=e.touches[0],r=canvas.getBoundingClientRect();applyDrag(t.clientX-r.left,t.clientY-r.top);}
-function onTE(){if(touchStart&&Date.now()-touchStart.time<300&&!didDrag){const obj=getObjectAt(touchStart.mx,touchStart.my);if(obj&&S.editMode){openObjModal(obj.id);drag=null;touchStart=null;return;}if(!S.editMode){const s=getShelfAt(touchStart.mx,touchStart.my);if(s)selectTier(s.id+'-'+getTierAt(s,touchStart.my));else closeDetail();}}drag=null;touchStart=null;}
+function onTE(){if(touchStart&&Date.now()-touchStart.time<300&&!didDrag){const obj=getObjectAt(touchStart.mx,touchStart.my);if(obj&&S.editMode){openObjModal(obj.id);drag=null;touchStart=null;return;}if(!S.editMode){const s=getShelfAt(touchStart.mx,touchStart.my);if(s)selectTier(s.id+'-'+getTierAt(s,touchStart.mx,touchStart.my));else closeDetail();}}drag=null;touchStart=null;}
 function toggleEdit(){S.editMode=!S.editMode;document.getElementById('edit-toggle').classList.toggle('on',S.editMode);document.getElementById('edit-hint').style.display=S.editMode?'inline':'none';document.getElementById('add-obj-btn').style.display=S.editMode?'inline-flex':'none';document.getElementById('add-shelf-area').style.display=S.editMode?'flex':'none';if(!S.editMode){canvas.style.cursor='default';if(window.fbSave)fbSave();}drawMap();}
 function renderRoomTabs(){document.getElementById('room-tabs').innerHTML=S.rooms.map(r=>`<div class="room-btn ${r.id===S.currentRoom?'active':''}" onclick="selectRoom('${r.id}')">${r.name}</div>`).join('');}
 function selectRoom(id){S.currentRoom=id;S.selectedTierKey=null;renderRoomTabs();closeDetail();drawMap();}
@@ -1214,7 +1235,7 @@ function renderShelfList(){
       <button class="btn" onclick="deleteShelf('${s.id}')" style="font-size:16px;padding:1px 7px;color:#A32D2D;border-color:#E24B4A;flex-shrink:0">削除</button>
     </div>`).join('');
 }
-function deleteShelf(id){if(!confirm('この棚を削除しますか？棚に登録された品目も削除されます。'))return;S.shelves=S.shelves.filter(s=>s.id!==id);S.items=S.items.filter(i=>i.shelfId!==id);drawMap();renderSettings();renderSummary();}
+function deleteShelf(id){if(!confirm('この棚を削除しますか？棚に登録された品目も削除されます。'))return;S.shelves=S.shelves.filter(s=>s.id!==id);S.items=S.items.filter(i=>i.shelfId!==id);drawMap();renderSettings();renderSummary();if(window.fbSave)fbSave();}
 function renderSettings(){document.getElementById('room-list-set').innerHTML=S.rooms.map(r=>`
   <div style="display:flex;align-items:center;gap:5px;font-size:18px;padding:4px 0;border-bottom:1px solid var(--border)" id="room-row-${r.id}">
     <span style="flex:1" id="room-label-${r.id}">${r.name}</span>
@@ -1625,6 +1646,37 @@ function applyJanCode(code){
 // ===== マップオブジェクト（机・入口など） =====
 const OBJ_COLORS=['#5B8DEF','#4CAF50','#EF9F27','#E24B4A','#9B59B6','#888','#795548'];
 
+var _editingShelfId = null;
+function openShelfEditModal(id){
+  const s = S.shelves.find(sh=>sh.id===id);
+  if(!s)return;
+  _editingShelfId = id;
+  document.getElementById('shelf-edit-name').value = s.name;
+  document.getElementById('shelf-edit-overlay').classList.add('show');
+}
+function closeShelfEditModal(){
+  document.getElementById('shelf-edit-overlay').classList.remove('show');
+  _editingShelfId = null;
+}
+function saveShelfEditModal(){
+  const s = S.shelves.find(sh=>sh.id===_editingShelfId);
+  if(!s)return;
+  const name = document.getElementById('shelf-edit-name').value.trim();
+  if(!name){alert('棚名を入力してください');return;}
+  s.name = name;
+  closeShelfEditModal();
+  drawMap();renderSettings();
+  showToast('✓ 棚名を変更しました');
+}
+function deleteShelfFromModal(){
+  if(!confirm('この棚を削除しますか？棚に登録された品目も削除されます。'))return;
+  S.shelves=S.shelves.filter(s=>s.id!==_editingShelfId);
+  S.items=S.items.filter(i=>i.shelfId!==_editingShelfId);
+  closeShelfEditModal();
+  drawMap();renderSettings();renderSummary();
+  if(window.fbSave)fbSave();
+  showToast('棚を削除しました');
+}
 function addShelfFromMap(){
   const name=document.getElementById('map-shelf-name').value.trim();
   if(!name){alert('棚名を入力してください');return;}

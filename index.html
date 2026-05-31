@@ -363,11 +363,21 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         <input class="sinput" id="ni-code" placeholder="JANコード・品番（省略可）"/>
         <button class="btn" onclick="openJanScanner()" title="カメラでバーコードを読み取る" style="flex-shrink:0;display:flex;align-items:center;gap:4px"><i class="ti ti-barcode"></i> 読取</button>
       </div>
-      <div class="srow">
-        <label style="font-size:16px;color:var(--text-secondary);font-weight:600;flex-shrink:0">置き場</label>
-        <select class="ssel" id="ni-room" onchange="updateShelfSel()"></select>
-        <select class="ssel" id="ni-shelf" onchange="updateTierSel()"></select>
-        <select class="ssel" id="ni-tier"></select>
+      <div style="margin-bottom:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:16px;color:var(--text-secondary);font-weight:600">置き場</span>
+            <select class="ssel" id="ni-room" onchange="updateShelfSel()" style="min-width:100px"></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:100px">
+            <span style="font-size:16px;color:var(--text-secondary);font-weight:600">棚名</span>
+            <select class="ssel" id="ni-shelf" onchange="updateTierSel()" style="width:100%"></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:70px">
+            <span style="font-size:16px;color:var(--text-secondary);font-weight:600">段数</span>
+            <select class="ssel" id="ni-tier" style="width:100%"></select>
+          </div>
+        </div>
       </div>
       <div class="srow"><select class="ssel" id="ni-cat" style="flex:1"><option value="">カテゴリ（省略可）</option></select></div>
       <div class="srow"><input class="sinput" id="ni-url" placeholder="発注URL（省略可）" type="url"/></div>
@@ -1243,7 +1253,7 @@ function renderSettings(){document.getElementById('room-list-set').innerHTML=S.r
     <button class="btn" id="room-edit-btn-${r.id}" onclick="startRenameRoom('${r.id}')" style="font-size:17px;padding:2px 8px">編集</button>
     <button class="btn p" id="room-save-btn-${r.id}" onclick="saveRenameRoom('${r.id}')" style="font-size:17px;padding:2px 8px;display:none">保存</button>
     <button class="btn" onclick="deleteRoom('${r.id}')" style="font-size:17px;padding:2px 8px;color:#A32D2D;border-color:#E24B4A">削除</button>
-  </div>`).join('');document.getElementById('shelf-room-sel').innerHTML=S.rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');document.getElementById('ni-room').innerHTML=S.rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');updateShelfSel();document.getElementById('ni-cat').innerHTML='<option value="">カテゴリ（省略可）</option>'+S.categories.map(c=>`<option value="${c}">${c}</option>`).join('');renderCatListSet();renderShelfList();renderItemCodeList();}
+  </div>`).join('');document.getElementById('ni-room').innerHTML=S.rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');updateShelfSel();document.getElementById('ni-cat').innerHTML='<option value="">カテゴリ（省略可）</option>'+S.categories.map(c=>`<option value="${c}">${c}</option>`).join('');renderCatListSet();renderShelfList();renderItemCodeList();}
 function renderItemCodeList(){
   const el=document.getElementById('item-code-list');if(!el)return;
   const q=(document.getElementById('item-search-input')||{}).value||'';

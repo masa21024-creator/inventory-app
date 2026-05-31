@@ -44,16 +44,16 @@ html,body{height:100dvh;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 .tab i{font-size:18px}
 .tab.active{color:#185FA5;border-bottom-color:#185FA5;background:#fff}
 
-.content{flex:1;overflow:hidden}
-.panel{display:none;height:100%;flex-direction:column;overflow:hidden;flex:1}
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.panel{display:none;flex-direction:column;overflow:hidden;flex:1}.panel.active{display:flex;flex:1}
 .panel.active{display:flex}
 
 /* マップ */
-.map-canvas-wrap{position:relative;overflow:hidden;height:70%;flex-shrink:0}
+.map-canvas-wrap{position:relative;overflow:hidden;flex:1;min-height:0}
 #map-canvas{position:absolute;inset:0;width:100%;height:100%}
 
 /* 検索結果：常に25%確保・マップ縮尺不変 */
-.result-panel{display:block;background:#fff;border-top:1px solid rgba(0,0,0,0.08);overflow-y:auto;height:30%;flex-shrink:0}
+.result-panel{display:none;background:#fff;border-top:1px solid rgba(0,0,0,0.08);overflow-y:auto;max-height:30%;flex-shrink:0}
 .result-panel.show{display:block}
 .panel-map-inner{display:flex;flex-direction:column;height:100%}
 .result-card-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(0,0,0,0.07);position:sticky;top:0;background:#fff}
@@ -395,7 +395,7 @@ function switchTab(tab) {
 }
 
 // ===== マップ =====
-var sp_canvas, sp_ctx, currentRoom = S.rooms[0].id, highlightIds = [];
+var sp_canvas, sp_ctx, currentRoom = '', highlightIds = [];
 
 function initMap() {
   sp_canvas = document.getElementById('map-canvas');
@@ -833,6 +833,8 @@ window.fbLoad = async function() {
       if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
         return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
       });
+      // currentRoomが未設定なら最初の部屋をセット
+      if (!currentRoom && S.rooms.length) currentRoom = S.rooms[0].id;
     }
   } catch(e) { console.error('fbLoad error:', e); }
 };
@@ -881,6 +883,8 @@ window.startRealtimeSync = function() {
       if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
         return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
       });
+      // currentRoomが未設定なら最初の部屋をセット
+      if (!currentRoom && S.rooms.length) currentRoom = S.rooms[0].id;
       if (d.orderRequested) {
         window._orderRequested = d.orderRequested;
         orderRequested = window._orderRequested;

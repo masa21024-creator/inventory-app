@@ -1543,7 +1543,7 @@ function saveItemEdit(){
   renderSummary();
   drawMap();
   if(S.selectedTierKey) selectTier(S.selectedTierKey);
-  
+  if(window.fbSave)fbSave();
   showToast('✓ 「'+item.name+'」を更新しました');
 }
 

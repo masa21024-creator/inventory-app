@@ -166,9 +166,9 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
     <div class="panel active" id="panel-map">
       <!-- 検索ボックス（マップ上部） -->
       <div style="display:flex;gap:8px;padding:8px 10px;background:#fff;border-bottom:1px solid rgba(0,0,0,0.08);flex-shrink:0;align-items:center">
-        <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索" style="flex:1"/>
-        <button class="header-search-btn" id="search-btn">検索</button>
-        <select class="header-room" id="room-select" style="font-size:13px;padding:6px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;outline:none"></select>
+        <input type="text" class="header-search" id="search-input" placeholder="品目名・コード検索" style="width:40%;flex-shrink:0"/>
+        <button class="header-search-btn" id="search-btn" style="flex-shrink:0">検索</button>
+        <select class="header-room" id="room-select" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;outline:none;min-width:0"></select>
       </div>
       <div class="map-canvas-wrap">
         <canvas id="map-canvas"></canvas>
@@ -287,7 +287,14 @@ function spLogout(){
 // ===== アプリ初期化 =====
 function initApp() {
   bindButtons();
-  window._fbReady.then(function(){startRealtimeSync();fbLoadHistory().then(function(){renderBadge();renderRoomTabs();initMap();drawMap();});});
+  window._fbReady.then(function(){
+    startRealtimeSync();
+    fbLoad().then(function(){
+      fbLoadHistory().then(function(){
+        renderBadge();renderRoomTabs();initMap();drawMap();
+      });
+    });
+  });
 }
 
 

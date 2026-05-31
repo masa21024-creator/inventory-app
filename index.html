@@ -177,20 +177,19 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <input class="search-box" type="text" placeholder="品目名で検索（部分一致）..." id="search-input" oninput="onSearch()"/>
     <div id="room-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     <div class="edit-toggle" id="edit-toggle" onclick="toggleEdit()"><i class="ti ti-pencil"></i> 編集</div>
+    <div id="add-shelf-area" style="display:none;align-items:center;gap:4px">
+      <input class="sinput" id="map-shelf-name" placeholder="棚名" style="width:80px;font-size:12px;padding:3px 6px"/>
+      <select class="ssel" id="map-shelf-tiers" style="font-size:12px;padding:3px 4px">
+        <option value="1">1段</option>
+        <option value="2">2段</option>
+        <option value="3" selected>3段</option>
+        <option value="4">4段</option>
+        <option value="5">5段</option>
+      </select>
+      <button class="btn p" style="font-size:12px;padding:3px 8px" onclick="addShelfFromMap()"><i class="ti ti-layout-rows"></i> 棚追加</button>
+    </div>
     <button class="btn" id="add-obj-btn" style="display:none;font-size:12px;padding:3px 10px" onclick="addObject()"><i class="ti ti-box-multiple-plus"></i> ボックス追加</button>
     <span id="edit-hint" style="font-size:11px;color:#185FA5;display:none">棚をドラッグで移動 / 右下角でリサイズ</span>
-  </div>
-  <div id="add-shelf-area" style="display:none;align-items:center;gap:4px;padding:4px 14px;background:var(--bg-tertiary);border-bottom:1px solid var(--border);flex-shrink:0">
-    <span style="font-size:12px;color:var(--text-secondary)">棚追加：</span>
-    <input class="sinput" id="map-shelf-name" placeholder="棚名" style="width:90px;font-size:12px;padding:3px 6px"/>
-    <select class="ssel" id="map-shelf-tiers" style="font-size:12px;padding:3px 4px">
-      <option value="1">1段</option>
-      <option value="2">2段</option>
-      <option value="3" selected>3段</option>
-      <option value="4">4段</option>
-      <option value="5">5段</option>
-    </select>
-    <button class="btn p" style="font-size:12px;padding:3px 8px" onclick="addShelfFromMap()"><i class="ti ti-layout-rows"></i> 追加</button>
   </div>
   <div class="map-body">
     <div class="floor-wrap" id="floor-wrap"><canvas id="floor-canvas"></canvas></div>
@@ -324,7 +323,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 <div class="panel" id="panel-settings">
   <div class="settings-wrap">
     <div class="settings-sec"><h3>部屋の管理</h3>
-      <div id="room-list-set" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+      <div id="room-list-set" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:200px;overflow-y:auto"></div>
       <div class="srow"><input class="sinput" id="new-room-name" placeholder="部屋名"/><button class="btn p" onclick="addRoom()">追加</button></div>
     </div>
     <div class="settings-sec"><h3>棚の追加</h3>

@@ -180,6 +180,18 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <button class="btn" id="add-obj-btn" style="display:none;font-size:12px;padding:3px 10px" onclick="addObject()"><i class="ti ti-box-multiple-plus"></i> ボックス追加</button>
     <span id="edit-hint" style="font-size:11px;color:#185FA5;display:none">棚をドラッグで移動 / 右下角でリサイズ</span>
   </div>
+  <div id="add-shelf-area" style="display:none;align-items:center;gap:4px;padding:4px 14px;background:var(--bg-tertiary);border-bottom:1px solid var(--border);flex-shrink:0">
+    <span style="font-size:12px;color:var(--text-secondary)">棚追加：</span>
+    <input class="sinput" id="map-shelf-name" placeholder="棚名" style="width:90px;font-size:12px;padding:3px 6px"/>
+    <select class="ssel" id="map-shelf-tiers" style="font-size:12px;padding:3px 4px">
+      <option value="1">1段</option>
+      <option value="2">2段</option>
+      <option value="3" selected>3段</option>
+      <option value="4">4段</option>
+      <option value="5">5段</option>
+    </select>
+    <button class="btn p" style="font-size:12px;padding:3px 8px" onclick="addShelfFromMap()"><i class="ti ti-layout-rows"></i> 追加</button>
+  </div>
   <div class="map-body">
     <div class="floor-wrap" id="floor-wrap"><canvas id="floor-canvas"></canvas></div>
     <div class="detail-panel" id="detail-panel">
@@ -966,7 +978,7 @@ let touchStart=null;
 function onTS(e){e.preventDefault();const t=e.touches[0],r=canvas.getBoundingClientRect(),mx=t.clientX-r.left,my=t.clientY-r.top;touchStart={mx,my,time:Date.now()};didDrag=false;if(S.editMode){const obj=getObjectAt(mx,my);if(obj){drag=isOnObjHandle(obj,mx,my)?{type:'obj-resize',obj,ox:mx,oy:my,sw:obj.w,sh:obj.h}:{type:'obj-move',obj,ox:mx,oy:my,sx:obj.x,sy:obj.y};return;}const s=getShelfAt(mx,my);if(s)drag=isOnHandle(s,mx,my)?{type:'resize',shelf:s,ox:mx,oy:my,sw:s.w,sh:s.h}:{type:'move',shelf:s,ox:mx,oy:my,sx:s.x,sy:s.y};}}
 function onTM(e){e.preventDefault();if(!drag)return;didDrag=true;const t=e.touches[0],r=canvas.getBoundingClientRect();applyDrag(t.clientX-r.left,t.clientY-r.top);}
 function onTE(){if(touchStart&&Date.now()-touchStart.time<300&&!didDrag){const obj=getObjectAt(touchStart.mx,touchStart.my);if(obj&&S.editMode){openObjModal(obj.id);drag=null;touchStart=null;return;}if(!S.editMode){const s=getShelfAt(touchStart.mx,touchStart.my);if(s)selectTier(s.id+'-'+getTierAt(s,touchStart.my));else closeDetail();}}drag=null;touchStart=null;}
-function toggleEdit(){S.editMode=!S.editMode;document.getElementById('edit-toggle').classList.toggle('on',S.editMode);document.getElementById('edit-hint').style.display=S.editMode?'inline':'none';document.getElementById('add-obj-btn').style.display=S.editMode?'inline-flex':'none';if(!S.editMode)canvas.style.cursor='default';drawMap();}
+function toggleEdit(){S.editMode=!S.editMode;document.getElementById('edit-toggle').classList.toggle('on',S.editMode);document.getElementById('edit-hint').style.display=S.editMode?'inline':'none';document.getElementById('add-obj-btn').style.display=S.editMode?'inline-flex':'none';document.getElementById('add-shelf-area').style.display=S.editMode?'flex':'none';if(!S.editMode){canvas.style.cursor='default';if(window.fbSave)fbSave();}drawMap();}
 function renderRoomTabs(){document.getElementById('room-tabs').innerHTML=S.rooms.map(r=>`<div class="room-btn ${r.id===S.currentRoom?'active':''}" onclick="selectRoom('${r.id}')">${r.name}</div>`).join('');}
 function selectRoom(id){S.currentRoom=id;S.selectedTierKey=null;renderRoomTabs();closeDetail();drawMap();}
 function selectTier(tierKey){S.selectedTierKey=tierKey;const [shelfId,tierStr]=tierKey.split('-'),tier=parseInt(tierStr);const shelf=S.shelves.find(s=>s.id===shelfId),room=S.rooms.find(r=>r.id===shelf.roomId);const items=S.items.filter(i=>i.shelfId===shelfId&&i.tier===tier);const tl=tier===1?'上段':tier===shelf.tiers?'下段':`${tier}段目`;document.getElementById('detail-empty').style.display='none';const dc=document.getElementById('detail-content');dc.style.display='flex';dc.innerHTML='';const title=document.createElement('div');title.style.cssText='font-size:18px;font-weight:700';title.textContent=`${shelf.name} › ${tl}`;const loc=document.createElement('div');loc.style.cssText='font-size:16px;color:var(--text-secondary);margin-bottom:4px';loc.textContent=room.name;dc.appendChild(title);dc.appendChild(loc);if(!items.length){const em=document.createElement('div');em.style.cssText='font-size:17px;color:var(--text-tertiary);text-align:center;padding:12px';em.textContent='品目なし';dc.appendChild(em);}else{items.forEach(item=>{const s=sc(item),pct=Math.min(100,Math.round(item.stock/item.max*100)),opct=Math.min(100,Math.round(item.orderAt/item.max*100));const hasUrl=item.orderUrl&&item.orderUrl.trim();let sb='';if(s==='warn')sb=`<button class="status-btn warn" onclick="openListModal('warn')">少なめ ↗</button>`;else if(s==='low')sb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none">発注する ↗</a>`:`<button class="status-btn low" onclick="openUrlModal('${item.id}')">URL登録 ＋</button>`;const row=document.createElement('div');row.className='item-row';row.innerHTML=`<div class="item-name-row"><span class="item-name">${item.name}</span>${sb}</div><div class="stock-bar-wrap"><div class="stock-bar ${s}" style="width:${pct}%"></div><div class="order-line" style="left:${opct}%"></div></div><div class="item-meta"><span>在庫:<strong>${item.stock}</strong>/${item.max}</span><span>発注点:${item.orderAt}</span></div><div class="qty-ctrl"><button class="qty-btn" onclick="chg('${item.id}',-1)">−</button><span class="qty-val">${item.stock}</span><button class="qty-btn" onclick="chg('${item.id}',1)">＋</button></div>`;dc.appendChild(row);});}drawMap();}
@@ -1309,7 +1321,7 @@ function saveRenameCat(idx){
 
 function addRoom(){const n=document.getElementById('new-room-name').value.trim();if(!n)return;S.rooms.push({id:'r'+Date.now(),name:n});document.getElementById('new-room-name').value='';renderRoomTabs();renderSettings();if(window.fbSave)fbSave();}
 function deleteRoom(id){if(!confirm('この部屋を削除しますか？'))return;S.rooms=S.rooms.filter(r=>r.id!==id);const sids=S.shelves.filter(s=>s.roomId===id).map(s=>s.id);S.shelves=S.shelves.filter(s=>s.roomId!==id);S.items=S.items.filter(i=>!sids.includes(i.shelfId));if(S.currentRoom===id)S.currentRoom=S.rooms[0]?.id||'';renderRoomTabs();drawMap();renderSettings();renderSummary();}
-function addShelf(){const rid=document.getElementById('shelf-room-sel').value,name=document.getElementById('new-shelf-name').value.trim();if(!name)return;const usedX=S.shelves.filter(s=>s.roomId===rid).length;S.shelves.push({id:'s'+Date.now(),roomId:rid,name,x:5+usedX*22,y:10,w:18,h:60,tiers:parseInt(document.getElementById('ns-t').value)||3});document.getElementById('new-shelf-name').value='';drawMap();renderSettings();if(window.fbSave)fbSave();}
+function addShelf(){const rid=document.getElementById('shelf-room-sel').value,name=document.getElementById('new-shelf-name').value.trim();if(!name)return;S.shelves.push({id:'s'+Date.now(),roomId:rid,name,x:5,y:5,w:18,h:60,tiers:parseInt(document.getElementById('ns-t').value)||3});document.getElementById('new-shelf-name').value='';drawMap();renderSettings();if(window.fbSave)fbSave();}
 function addItem(){const name=document.getElementById('ni-name').value.trim();if(!name){showToast('品目名を入力してください','error');return;}S.items.push({id:'i'+Date.now(),name,code:document.getElementById('ni-code').value.trim(),shelfId:document.getElementById('ni-shelf').value,tier:parseInt(document.getElementById('ni-tier').value)||1,cat:document.getElementById('ni-cat').value,orderUrl:document.getElementById('ni-url').value.trim(),stock:parseInt(document.getElementById('ni-stock').value)||0,max:parseInt(document.getElementById('ni-max').value)||30,orderAt:parseInt(document.getElementById('ni-order').value)||10});document.getElementById('ni-name').value='';document.getElementById('ni-code').value='';document.getElementById('ni-url').value='';renderSummary();drawMap();renderSettings();showToast('✓ 「'+name+'」を登録しました');if(window.fbSave)fbSave();}
 function exportCSV(){let csv='品目名,コード,部屋,棚,段,カテゴリ,発注URL,在庫,最大,発注点\n';S.items.forEach(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId);const room=shelf?S.rooms.find(r=>r.id===shelf.roomId):{name:''};csv+=`"${item.name}","${item.code||''}","${room.name}","${shelf?shelf.name:''}",${item.tier},"${item.cat||''}","${item.orderUrl||''}",${item.stock},${item.max},${item.orderAt}\n`;});dlCSV(csv,'在庫データ.csv');}
 function importCSV(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const lines=ev.target.result.split('\n').slice(1).filter(l=>l.trim());let added=0;lines.forEach(line=>{const cols=line.split(',').map(c=>c.replace(/^"|"$/g,'').trim());if(cols.length<10)return;const [name,code,roomName,shelfName,tier,cat,orderUrl,stock,max,orderAt]=cols;const room=S.rooms.find(r=>r.name===roomName);if(!room)return;const shelf=S.shelves.find(s=>s.name===shelfName&&s.roomId===room.id);if(!shelf)return;const ex=S.items.find(i=>i.name===name);if(ex){ex.stock=parseInt(stock)||0;ex.max=parseInt(max)||30;ex.orderAt=parseInt(orderAt)||10;ex.cat=cat||'';ex.orderUrl=orderUrl||'';}else{S.items.push({id:'i'+Date.now()+Math.random(),name,code,shelfId:shelf.id,tier:parseInt(tier)||1,cat,orderUrl:orderUrl||'',stock:parseInt(stock)||0,max:parseInt(max)||30,orderAt:parseInt(orderAt)||10});added++;}});renderSummary();drawMap();if(window.fbSave)fbSave();alert(`インポート完了（新規追加${added}件）`);};reader.readAsText(file,'UTF-8');}
@@ -1614,6 +1626,16 @@ function applyJanCode(code){
 // ===== マップオブジェクト（机・入口など） =====
 const OBJ_COLORS=['#5B8DEF','#4CAF50','#EF9F27','#E24B4A','#9B59B6','#888','#795548'];
 
+function addShelfFromMap(){
+  const name=document.getElementById('map-shelf-name').value.trim();
+  if(!name){alert('棚名を入力してください');return;}
+  const tiers=parseInt(document.getElementById('map-shelf-tiers').value)||3;
+  S.shelves.push({id:'s'+Date.now(),roomId:S.currentRoom,name,x:5,y:5,w:18,h:60,tiers});
+  document.getElementById('map-shelf-name').value='';
+  drawMap();renderSettings();
+  if(window.fbSave)fbSave();
+  showToast('✓ 棚「'+name+'」を追加しました');
+}
 function addObject(){
   if(!S.objects)S.objects=[];
   const newObj={id:'o'+Date.now(),roomId:S.currentRoom,label:'新しいボックス',note:'',color:'#5B8DEF',x:30,y:30,w:20,h:12};

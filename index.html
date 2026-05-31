@@ -1936,6 +1936,8 @@ window.fbLoad = async function() {
       if (d.objects && d.objects.length) S.objects = d.objects.map(function(o){
         return Object.assign({},o,{x:parseFloat(o.x)||0,y:parseFloat(o.y)||0,w:parseFloat(o.w)||20,h:parseFloat(o.h)||12});
       });
+      // currentRoomが未設定なら最初の部屋をセット
+      if (!S.currentRoom && S.rooms.length) S.currentRoom = S.rooms[0].id;
     }
   } catch(e) { console.error('fbLoad error:', e); }
 };

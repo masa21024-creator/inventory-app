@@ -1284,7 +1284,7 @@ function renderCatListSet(){
       <button class="btn" onclick="deleteCat(${i})" style="font-size:16px;padding:1px 7px;color:#A32D2D;border-color:#E24B4A">削除</button>
     </div>`).join('');
 }
-function addCategory(){const v=document.getElementById('new-cat').value.trim();if(!v||S.categories.includes(v))return;S.categories.push(v);document.getElementById('new-cat').value='';renderSettings();}
+function addCategory(){const v=document.getElementById('new-cat').value.trim();if(!v||S.categories.includes(v))return;S.categories.push(v);document.getElementById('new-cat').value='';renderSettings();if(window.fbSave)fbSave();}
 function deleteCat(i){if(!confirm('「'+S.categories[i]+'」カテゴリを削除しますか？'))return;S.categories.splice(i,1);renderSettings();if(window.fbSave)fbSave();}
 function updateIeShelfSel(){
   const rid = document.getElementById('ie-room').value;
@@ -1346,6 +1346,7 @@ function saveRenameCat(idx){
   S.items.forEach(item=>{ if(item.cat && item.cat.startsWith(oldCat)) item.cat = item.cat.replace(oldCat, val); });
   renderCatListSet();
   renderCatTree();
+  if(window.fbSave)fbSave();
   showToast('✓ カテゴリ名を変更しました');
 }
 

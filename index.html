@@ -236,11 +236,17 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div style="font-size:14px;color:var(--text-secondary);background:var(--bg-secondary);border-radius:var(--radius);padding:10px 14px;border-left:3px solid #185FA5">
         <i class="ti ti-usb" style="margin-right:6px"></i>USBバーコードリーダーを接続し、下の入力欄でスキャン
       </div>
-      <div class="scan-card">
-        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px">バーコードをスキャン、または品目名・コードを入力してEnter</div>
-        <input style="width:100%;padding:12px;border:2px solid #185FA5;border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="scan-input" placeholder="ここをクリックしてからスキャン..." onkeydown="onScanKey(event)" oninput="onScanKey(event)"/>
+      <div class="scan-card" style="border:2px solid #185FA5">
+        <div style="font-size:14px;color:#185FA5;margin-bottom:8px;font-weight:600">📷 バーコードリーダー（自動検索）</div>
+        <input style="width:100%;padding:12px;border:2px solid #185FA5;border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="barcode-input" placeholder="ここをクリックしてからスキャン..." onkeydown="onBarcodeKey(event)" oninput="onBarcodeInput()"/>
         <div id="scan-status-msg" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary);margin-top:6px"></div>
         <div id="scan-multi-result" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
+      </div>
+      <div class="scan-card">
+        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">📝 手入力検索（Enter）</div>
+        <input style="width:100%;padding:12px;border:2px solid var(--border);border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="scan-input" placeholder="品目名・コードを入力してEnter..." onkeydown="onScanKey(event)"/>
+        <div id="scan-status-msg-manual" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary);margin-top:6px"></div>
+        <div id="scan-multi-result-manual" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
       </div>
       <!-- ピックアップ品目カード -->
       <div id="scan-pickup" style="display:none"></div>
@@ -1214,28 +1220,39 @@ function scanChg(id, d) {
 
 function catChg(id,d,ps){const item=S.items.find(i=>i.id===id);if(!item)return;const prev=item.stock;item.stock=Math.max(0,item.stock+d);addHistory(item,prev,item.stock,d>0?'入庫':'出庫');renderSummary();const q=(document.getElementById('cat-item-search').value||'').trim();if(q){filterCatItems();}else if(ps){selectCat(ps);}}
 
-function onScanKey(e){
-  if(e.key==='Enter'){
-    clearTimeout(window._scanTimer);
-    doScan(e.target.value.trim());
-    e.target.value='';
-    setTimeout(function(){document.getElementById('scan-input').focus();},50);
-    return;
-  }
-  // バーコードリーダーは高速入力後に止まる→150ms後に自動実行
-  clearTimeout(window._scanTimer);
-  window._scanTimer = setTimeout(function(){
-    var val = document.getElementById('scan-input').value.trim();
+function onBarcodeInput(){
+  clearTimeout(window._barcodeTimer);
+  window._barcodeTimer = setTimeout(function(){
+    var val = document.getElementById('barcode-input').value.trim();
     if(!val) return;
-    doScan(val);
-    document.getElementById('scan-input').value='';
-    setTimeout(function(){document.getElementById('scan-input').focus();},50);
-  }, 150);
+    doScanTo(val, 'barcode');
+    document.getElementById('barcode-input').value='';
+    setTimeout(function(){document.getElementById('barcode-input').focus();},50);
+  }, 50);
 }
 
-function doScan(val){
+function onBarcodeKey(e){
+  if(e.key==='Enter'){
+    clearTimeout(window._barcodeTimer);
+    doScanTo(e.target.value.trim(), 'barcode');
+    e.target.value='';
+    setTimeout(function(){document.getElementById('barcode-input').focus();},50);
+  }
+}
+
+function onScanKey(e){
+  if(e.key!=='Enter')return;
+  clearTimeout(window._scanTimer);
+  doScanTo(e.target.value.trim(), 'manual');
+  e.target.value='';
+  setTimeout(function(){document.getElementById('scan-input').focus();},50);
+}
+
+function doScan(val){ doScanTo(val, 'barcode'); }
+function doScanTo(val, target){
   if(!val)return;
-  const statusEl=document.getElementById('scan-status-msg');
+  const statusEl=target==='manual'?document.getElementById('scan-status-msg-manual'):document.getElementById('scan-status-msg');
+  const multiEl=target==='manual'?document.getElementById('scan-multi-result-manual'):document.getElementById('scan-multi-result');
   const now=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
 
   // コード完全一致を優先
@@ -1265,8 +1282,8 @@ function doScan(val){
   }
 }
 
-function showScanMultiResult(items){
-  const el=document.getElementById('scan-multi-result');
+function showScanMultiResult(items, target){
+  const el=target==='manual'?document.getElementById('scan-multi-result-manual'):document.getElementById('scan-multi-result');
   if(!el)return;
   el.innerHTML=items.map(item=>`
     <div style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:16px;display:flex;align-items:center;gap:8px"
@@ -1281,7 +1298,8 @@ function selectScanItem(id){
   const item=S.items.find(i=>i.id===id);
   if(!item)return;
   document.getElementById('scan-multi-result').style.display='none';
-  const statusEl=document.getElementById('scan-status-msg');
+  const statusEl=target==='manual'?document.getElementById('scan-status-msg-manual'):document.getElementById('scan-status-msg');
+  const multiEl=target==='manual'?document.getElementById('scan-multi-result-manual'):document.getElementById('scan-multi-result');
   if(statusEl){statusEl.textContent='✅ '+item.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
   showScanPickup(item);
   setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);

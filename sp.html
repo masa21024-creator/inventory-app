@@ -603,13 +603,33 @@ function startScanLoop() {
   }, 400);
 }
 
+function scanSuccessFeedback() {
+  // 振動
+  if (navigator.vibrate) navigator.vibrate([100]);
+  // 音
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+}
+
 function handleScan(code) {
   var item = S.items.find(function(i) { return i.code === code || i.name === code; });
   if (!item) {
-    document.getElementById('scan-status').textContent = '❌ "' + code + '" — 未登録の商品です';
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+    var st=document.getElementById('scan-status');st.textContent='❌ "'+code+'" — 未登録の商品です';st.style.color='#E24B4A';st.style.fontSize='16px';st.style.fontWeight='700';
     return;
   }
-  document.getElementById('scan-status').textContent = '✅ ' + item.name;
+  scanSuccessFeedback();
+  var st=document.getElementById('scan-status');st.textContent='✅ '+item.name;st.style.color='#1D9E75';st.style.fontSize='16px';st.style.fontWeight='700';
   showPickup(item);
 }
 
@@ -640,7 +660,7 @@ function selectCandidate(itemId) {
   document.getElementById('manual-input').value = '';
   document.getElementById('search-candidates').classList.remove('show');
   document.getElementById('search-candidates').innerHTML = '';
-  document.getElementById('scan-status').textContent = '✅ ' + item.name;
+  var st=document.getElementById('scan-status');st.textContent='✅ '+item.name;st.style.color='#1D9E75';st.style.fontSize='16px';st.style.fontWeight='700';
   showPickup(item);
 }
 

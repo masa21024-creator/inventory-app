@@ -238,7 +238,9 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       </div>
       <div class="scan-card">
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px">バーコードをスキャン、または品目名・コードを入力してEnter</div>
-        <input style="width:100%;padding:12px;border:2px solid #185FA5;border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="scan-input" placeholder="ここをクリックしてからスキャン..." onkeydown="onScanKey(event)"/>
+        <input style="width:100%;padding:12px;border:2px solid #185FA5;border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="scan-input" placeholder="ここをクリックしてからスキャン..." onkeydown="onScanKey(event)" oninput="onScanKey(event)"/>
+        <div id="scan-status-msg" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary);margin-top:6px"></div>
+        <div id="scan-multi-result" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
       </div>
       <!-- ピックアップ品目カード -->
       <div id="scan-pickup" style="display:none"></div>
@@ -1213,19 +1215,76 @@ function scanChg(id, d) {
 function catChg(id,d,ps){const item=S.items.find(i=>i.id===id);if(!item)return;const prev=item.stock;item.stock=Math.max(0,item.stock+d);addHistory(item,prev,item.stock,d>0?'入庫':'出庫');renderSummary();const q=(document.getElementById('cat-item-search').value||'').trim();if(q){filterCatItems();}else if(ps){selectCat(ps);}}
 
 function onScanKey(e){
-  if(e.key!=='Enter')return;
-  const val=e.target.value.trim();
+  if(e.key==='Enter'){
+    clearTimeout(window._scanTimer);
+    doScan(e.target.value.trim());
+    e.target.value='';
+    setTimeout(function(){document.getElementById('scan-input').focus();},50);
+    return;
+  }
+  // バーコードリーダーは高速入力後に止まる→150ms後に自動実行
+  clearTimeout(window._scanTimer);
+  window._scanTimer = setTimeout(function(){
+    var val = document.getElementById('scan-input').value.trim();
+    if(!val) return;
+    doScan(val);
+    document.getElementById('scan-input').value='';
+    setTimeout(function(){document.getElementById('scan-input').focus();},50);
+  }, 150);
+}
+
+function doScan(val){
   if(!val)return;
-  const item=S.items.find(i=>i.code===val||i.name.includes(val));
+  const statusEl=document.getElementById('scan-status-msg');
   const now=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-  if(!item){
+
+  // コード完全一致を優先
+  const byCode=S.items.find(i=>i.code===val);
+  if(byCode){
+    if(statusEl){statusEl.textContent='✅ '+byCode.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
+    showScanPickup(byCode);
+    setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
+    return;
+  }
+
+  // 品目名部分一致（複数）
+  const byName=S.items.filter(i=>i.name.includes(val));
+  if(byName.length===0){
+    if(statusEl){statusEl.textContent='❌ "'+val+'" — 未登録の商品です';statusEl.style.color='#E24B4A';statusEl.style.display='block';}
     document.getElementById('scan-log').insertAdjacentHTML('afterbegin',
       '<div class="log-row"><span style="color:#E24B4A">'+val+' — 未登録</span><span>'+now+'</span></div>');
+    setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
+  } else if(byName.length===1){
+    if(statusEl){statusEl.textContent='✅ '+byName[0].name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
+    showScanPickup(byName[0]);
+    setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
   } else {
-    showScanPickup(item);
+    // 複数ヒット→一覧表示
+    if(statusEl){statusEl.textContent=byName.length+'件ヒット — 選択してください';statusEl.style.color='#185FA5';statusEl.style.display='block';}
+    showScanMultiResult(byName);
   }
-  e.target.value='';
-  setTimeout(function(){document.getElementById('scan-input').focus();},50);
+}
+
+function showScanMultiResult(items){
+  const el=document.getElementById('scan-multi-result');
+  if(!el)return;
+  el.innerHTML=items.map(item=>`
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:16px;display:flex;align-items:center;gap:8px"
+      onclick="selectScanItem('${item.id}')">
+      <span style="flex:1">${item.name}</span>
+      <span style="font-size:13px;color:var(--text-tertiary)">${item.stock}/${item.max}</span>
+    </div>`).join('');
+  el.style.display='block';
+}
+
+function selectScanItem(id){
+  const item=S.items.find(i=>i.id===id);
+  if(!item)return;
+  document.getElementById('scan-multi-result').style.display='none';
+  const statusEl=document.getElementById('scan-status-msg');
+  if(statusEl){statusEl.textContent='✅ '+item.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
+  showScanPickup(item);
+  setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
 }
 
 function renderShelfList(){

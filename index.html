@@ -36,7 +36,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .modal-title{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
 .close-btn{cursor:pointer;color:var(--text-secondary);font-size:22px;line-height:1;padding:0 4px;border:none;background:none}
 .map-controls{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.search-box{flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;outline:none}
+.search-box{width:100%;min-width:160px;padding:6px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;outline:none;box-sizing:border-box;flex-shrink:0}
 .room-btn{padding:4px 10px;font-size:12px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-primary);cursor:pointer;color:var(--text-secondary)}
 .room-btn.active{color:#185FA5;border-color:#185FA5;background:#E6F1FB;font-weight:500}
 .edit-toggle{padding:4px 10px;font-size:12px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg-primary);cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;gap:4px}
@@ -165,6 +165,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div class="tab" onclick="switchTab('category',this)"><i class="ti ti-category"></i> カテゴリ</div>
       <div class="tab" onclick="switchTab('scan',this)"><i class="ti ti-scan"></i> スキャン</div>
       <div class="tab" onclick="switchTab('history',this)"><i class="ti ti-history"></i> 履歴</div>
+      <div class="tab" onclick="switchTab('export',this)"><i class="ti ti-table-export"></i> 出力</div>
       <div class="tab" onclick="switchTab('settings',this)"><i class="ti ti-settings"></i> 設定</div>
       <div class="tab" onclick="switchTab('order',this)" style="color:#A32D2D"><i class="ti ti-clipboard-list"></i> 発注依頼 <span id="order-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px"></span></div>
     </div>
@@ -174,7 +175,6 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 <div class="content">
 <div class="panel active" id="panel-map">
   <div class="map-controls">
-    <input class="search-box" type="text" placeholder="品目名で検索（部分一致）..." id="search-input" oninput="onSearch()"/>
     <div id="room-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     <div class="edit-toggle" id="edit-toggle" onclick="toggleEdit()"><i class="ti ti-pencil"></i> 編集</div>
     <div id="add-shelf-area" style="display:none;align-items:center;gap:4px">
@@ -194,6 +194,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   <div class="map-body">
     <div class="floor-wrap" id="floor-wrap"><canvas id="floor-canvas"></canvas></div>
     <div class="detail-panel" id="detail-panel">
+      <input class="search-box" type="text" placeholder="品目名で検索（部分一致）..." id="search-input" oninput="onSearch()" style="width:100%;box-sizing:border-box;flex-shrink:0;font-size:13px;padding:6px 10px"/>
       <div style="color:var(--text-tertiary);text-align:center;padding:32px 0;font-size:11px" id="detail-empty">段をクリックして詳細表示</div>
       <div id="detail-content" style="display:none;flex-direction:column;gap:7px"></div>
     </div>
@@ -430,6 +431,49 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <div style="flex:1;overflow-y:auto;padding:16px" id="order-list">
       <div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">発注依頼はありません</div>
     </div>
+  </div>
+</div>
+<div class="panel" id="panel-export">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+    <!-- ヘッダー -->
+    <div style="padding:10px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:17px;font-weight:700;color:#1A3557"><i class="ti ti-table-export"></i> 在庫データ出力</span>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="expCheckAll(true)" style="font-size:13px">全選択</button>
+      <button class="btn" onclick="expCheckAll(false)" style="font-size:13px">全解除</button>
+      <button class="btn p" onclick="exportStockCSV()" style="font-size:13px;font-weight:700"><i class="ti ti-download"></i> CSVダウンロード</button>
+    </div>
+    <!-- 出力列選択 -->
+    <div style="padding:8px 16px;background:var(--bg-tertiary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary)">出力列：</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="exp-name" checked style="cursor:pointer"/> 品目名</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="exp-stock" checked style="cursor:pointer"/> 現在庫数</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="exp-max" style="cursor:pointer"/> 最大在庫数</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="exp-order-at" style="cursor:pointer"/> 発注点</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="exp-price" style="cursor:pointer"/> 単価</label>
+    </div>
+    <!-- 絞り込み -->
+    <div style="padding:8px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary)">絞り込み：</span>
+      <select class="ssel" id="exp-room" onchange="renderExportTab()" style="font-size:13px">
+        <option value="">部屋：すべて</option>
+      </select>
+      <select class="ssel" id="exp-cat" onchange="renderExportTab()" style="font-size:13px">
+        <option value="">カテゴリ：すべて</option>
+      </select>
+      <input class="sinput" id="exp-search" placeholder="品目名で検索..." oninput="renderExportTab()" style="font-size:13px;min-width:160px"/>
+    </div>
+    <!-- プリセット -->
+    <div style="padding:6px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary)">プリセット：</span>
+      <select class="ssel" id="exp-preset-sel" onchange="loadExportPreset()" style="font-size:13px;min-width:150px">
+        <option value="">-- 選択 --</option>
+      </select>
+      <button class="btn" onclick="saveExportPreset()" style="font-size:13px"><i class="ti ti-device-floppy"></i> 現在の選択を保存</button>
+      <button class="btn" onclick="deleteExportPreset()" style="font-size:13px;color:#A32D2D">削除</button>
+    </div>
+    <!-- 品目チェックリスト -->
+    <div style="flex:1;overflow-y:auto;padding:8px 16px" id="exp-item-list"></div>
   </div>
 </div>
 </div>
@@ -957,7 +1001,7 @@ function exportHistoryCSVData(filtered){
 
 
 
-function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();}
+function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();if(tab==='export')renderExportTab();}
 let canvas,ctx,wrap,drag=null,didDrag=false;
 function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',(e)=>{
   if(S.editMode && !didDrag && drag && drag.shelf){
@@ -1428,7 +1472,7 @@ function saveRenameCat(idx){
 }
 
 function addRoom(){const n=document.getElementById('new-room-name').value.trim();if(!n)return;S.rooms.push({id:'r'+Date.now(),name:n});document.getElementById('new-room-name').value='';renderRoomTabs();renderSettings();if(window.fbSave)fbSave();}
-function deleteRoom(id){if(!confirm('この部屋を削除しますか？'))return;S.rooms=S.rooms.filter(r=>r.id!==id);const sids=S.shelves.filter(s=>s.roomId===id).map(s=>s.id);S.shelves=S.shelves.filter(s=>s.roomId!==id);S.items=S.items.filter(i=>!sids.includes(i.shelfId));if(S.currentRoom===id)S.currentRoom=S.rooms[0]?.id||'';renderRoomTabs();drawMap();renderSettings();renderSummary();}
+function deleteRoom(id){if(!confirm('この部屋を削除しますか？'))return;S.rooms=S.rooms.filter(r=>r.id!==id);const sids=S.shelves.filter(s=>s.roomId===id).map(s=>s.id);S.shelves=S.shelves.filter(s=>s.roomId!==id);S.items=S.items.filter(i=>!sids.includes(i.shelfId));if(S.currentRoom===id)S.currentRoom=S.rooms[0]?.id||'';renderRoomTabs();drawMap();renderSettings();renderSummary();if(window.fbSave)fbSave();}
 function addShelf(){const rid=document.getElementById('shelf-room-sel').value,name=document.getElementById('new-shelf-name').value.trim();if(!name)return;S.shelves.push({id:'s'+Date.now(),roomId:rid,name,x:5,y:5,w:18,h:60,tiers:parseInt(document.getElementById('ns-t').value)||3});document.getElementById('new-shelf-name').value='';drawMap();renderSettings();if(window.fbSave)fbSave();}
 function addItem(){const name=document.getElementById('ni-name').value.trim();if(!name){showToast('品目名を入力してください','error');return;}S.items.push({id:'i'+Date.now(),name,code:document.getElementById('ni-code').value.trim(),shelfId:document.getElementById('ni-shelf').value,tier:parseInt(document.getElementById('ni-tier').value)||1,cat:document.getElementById('ni-cat').value,orderUrl:document.getElementById('ni-url').value.trim(),stock:parseInt(document.getElementById('ni-stock').value)||0,max:parseInt(document.getElementById('ni-max').value)||30,orderAt:parseInt(document.getElementById('ni-order').value)||10});document.getElementById('ni-name').value='';document.getElementById('ni-code').value='';document.getElementById('ni-url').value='';renderSummary();drawMap();renderSettings();showToast('✓ 「'+name+'」を登録しました');if(window.fbSave)fbSave();}
 function exportCSV(){let csv='品目名,コード,部屋,棚,段,カテゴリ,発注URL,在庫,最大,発注点\n';S.items.forEach(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId);const room=shelf?S.rooms.find(r=>r.id===shelf.roomId):{name:''};csv+=`"${item.name}","${item.code||''}","${room.name}","${shelf?shelf.name:''}",${item.tier},"${item.cat||''}","${item.orderUrl||''}",${item.stock},${item.max},${item.orderAt}\n`;});dlCSV(csv,'在庫データ.csv');}
@@ -1849,6 +1893,185 @@ window.addEventListener('load',()=>{
 
 
 
+// ===== 在庫データ出力 =====
+function renderExportTab() {
+  fbLoadExportPresets();
+  // 部屋セレクト
+  var roomSel = document.getElementById('exp-room');
+  if (roomSel) {
+    var curRoom = roomSel.value;
+    roomSel.innerHTML = '<option value="">部屋：すべて</option>' +
+      S.rooms.map(function(r){ return '<option value="'+r.id+'"'+(r.id===curRoom?' selected':'')+'>'+r.name+'</option>'; }).join('');
+  }
+  // カテゴリセレクト
+  var catSel = document.getElementById('exp-cat');
+  if (catSel) {
+    var curCat = catSel.value;
+    catSel.innerHTML = '<option value="">カテゴリ：すべて</option>' +
+      S.categories.map(function(c){ return '<option value="'+c+'"'+(c===curCat?' selected':'')+'>'+c+'</option>'; }).join('');
+  }
+  // 品目リスト描画
+  var filterRoom = roomSel ? roomSel.value : '';
+  var filterCat  = catSel  ? catSel.value  : '';
+  var searchQ    = (document.getElementById('exp-search')||{}).value || '';
+  var listEl = document.getElementById('exp-item-list');
+  if (!listEl) return;
+
+  var items = S.items.filter(function(item) {
+    if (filterRoom) {
+      var shelf = S.shelves.find(function(s){ return s.id === item.shelfId; });
+      if (!shelf || shelf.roomId !== filterRoom) return false;
+    }
+    if (filterCat && !(item.cat && item.cat.startsWith(filterCat))) return false;
+    if (searchQ && !(item.name && item.name.toLowerCase().includes(searchQ.toLowerCase()))) return false;
+    return true;
+  });
+
+  listEl.innerHTML = items.map(function(item) {
+    var shelf = S.shelves.find(function(s){ return s.id === item.shelfId; });
+    var room  = shelf ? S.rooms.find(function(r){ return r.id === shelf.roomId; }) : null;
+    var tl    = shelf ? (item.tier===1?'上段':item.tier===shelf.tiers?'下段':(item.tier+'段目')) : '';
+    var loc   = room ? (room.name+' › '+shelf.name+(tl?' › '+tl:'')) : '未設定';
+    var s = sc(item);
+    var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75')+';margin-right:6px"></span>';
+    return '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px">'
+      +'<input type="checkbox" class="exp-item-chk" data-id="'+item.id+'" checked style="width:16px;height:16px;cursor:pointer"/>'
+      +dot
+      +'<span style="flex:1;font-weight:600">'+item.name+'</span>'
+      +'<span style="color:var(--text-tertiary);font-size:12px">'+loc+'</span>'
+      +'<span style="font-size:13px;min-width:60px;text-align:right">在庫: '+item.stock+'</span>'
+      +'</label>';
+  }).join('') || '<div style="color:var(--text-tertiary);padding:32px;text-align:center">品目がありません</div>';
+}
+
+// ===== 出力プリセット =====
+var _expPresets = {}; // {name: {cols:{name,stock,...}, itemIds:[]}}
+
+window.fbLoadExportPresets = async function() {
+  try {
+    var snap = await get(ref(db, 'exportPresets'));
+    _expPresets = snap.exists() ? snap.val() : {};
+    renderPresetSel();
+  } catch(e) { console.error('fbLoadExportPresets error:', e); }
+};
+
+window.fbSaveExportPresets = async function() {
+  try { await set(ref(db, 'exportPresets'), _expPresets); } catch(e) {}
+};
+
+function renderPresetSel() {
+  var sel = document.getElementById('exp-preset-sel');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選択 --</option>' +
+    Object.keys(_expPresets).map(function(name) {
+      return '<option value="'+name+'"'+(name===cur?' selected':'')+'>'+name+'</option>';
+    }).join('');
+}
+
+function loadExportPreset() {
+  var name = document.getElementById('exp-preset-sel').value;
+  if (!name || !_expPresets[name]) return;
+  var p = _expPresets[name];
+  // 出力列を復元
+  ['name','stock','max','order-at','price'].forEach(function(k) {
+    var el = document.getElementById('exp-'+k);
+    if (el) el.checked = !!(p.cols && p.cols[k]);
+  });
+  // 品目チェックを復元
+  setTimeout(function() {
+    document.querySelectorAll('.exp-item-chk').forEach(function(cb) {
+      cb.checked = p.itemIds && p.itemIds.includes(cb.dataset.id);
+    });
+  }, 50);
+}
+
+function saveExportPreset() {
+  var name = prompt('プリセット名を入力してください');
+  if (!name || !name.trim()) return;
+  name = name.trim();
+  var cols = {};
+  ['name','stock','max','order-at','price'].forEach(function(k) {
+    var el = document.getElementById('exp-'+k);
+    if (el) cols[k] = el.checked;
+  });
+  var itemIds = [];
+  document.querySelectorAll('.exp-item-chk:checked').forEach(function(cb) {
+    itemIds.push(cb.dataset.id);
+  });
+  _expPresets[name] = { cols: cols, itemIds: itemIds };
+  fbSaveExportPresets();
+  renderPresetSel();
+  document.getElementById('exp-preset-sel').value = name;
+  showToast('✓ プリセット「'+name+'」を保存しました');
+}
+
+function deleteExportPreset() {
+  var name = document.getElementById('exp-preset-sel').value;
+  if (!name) { alert('削除するプリセットを選択してください'); return; }
+  if (!confirm('プリセット「'+name+'」を削除しますか？')) return;
+  delete _expPresets[name];
+  fbSaveExportPresets();
+  renderPresetSel();
+  showToast('プリセット「'+name+'」を削除しました');
+}
+
+function expCheckAll(checked) {
+  document.querySelectorAll('.exp-item-chk').forEach(function(cb){ cb.checked = checked; });
+}
+
+function exportStockCSV() {
+  var inclName    = document.getElementById('exp-name').checked;
+  var inclStock   = document.getElementById('exp-stock').checked;
+  var inclMax     = document.getElementById('exp-max').checked;
+  var inclOrderAt = document.getElementById('exp-order-at').checked;
+  var inclPrice   = document.getElementById('exp-price').checked;
+
+  if (!inclName && !inclStock && !inclMax && !inclOrderAt && !inclPrice) {
+    alert('出力列を1つ以上選択してください');
+    return;
+  }
+
+  // チェックされた品目IDを取得
+  var checkedIds = [];
+  document.querySelectorAll('.exp-item-chk:checked').forEach(function(cb){ checkedIds.push(cb.dataset.id); });
+  if (checkedIds.length === 0) { alert('出力する品目を1つ以上選択してください'); return; }
+
+  // ヘッダー
+  var headers = [];
+  if (inclName)    headers.push('品目名');
+  if (inclStock)   headers.push('現在庫数');
+  if (inclMax)     headers.push('最大在庫数');
+  if (inclOrderAt) headers.push('発注点');
+  if (inclPrice)   headers.push('単価');
+
+  // チェックされた品目のみ
+  var items = S.items.filter(function(i){ return checkedIds.includes(i.id); });
+
+
+  var rows = items.map(function(item) {
+    var row = [];
+    if (inclName)    row.push('"' + (item.name || '').replace(/"/g, '""') + '"');
+    if (inclStock)   row.push(item.stock || 0);
+    if (inclMax)     row.push(item.max || 0);
+    if (inclOrderAt) row.push(item.orderAt || 0);
+    if (inclPrice)   row.push(item.unitPrice || 0);
+    return row.join(',');
+  });
+
+  var bom = '\uFEFF';
+  var csv = bom + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var now2 = new Date();
+  var dateStr = now2.getFullYear() + ('0'+(now2.getMonth()+1)).slice(-2) + ('0'+now2.getDate()).slice(-2);
+  a.href = url;
+  a.download = '\u5728\u5eab\u30c7\u30fc\u30bf_' + dateStr + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('\u2713 CSV\u3092\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u3057\u307e\u3057\u305f');
+}
 // ===== 発注依頼 =====
 var orderRequests = [];
 

@@ -481,9 +481,60 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <div style="padding:10px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:17px;font-weight:700;color:#185FA5"><i class="ti ti-package-import"></i> 入荷待ちリスト</span>
       <span style="font-size:13px;color:var(--text-tertiary)">発注済み品目の入荷管理</span>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="openManualOrderHistory()" style="font-size:13px"><i class="ti ti-history"></i> 発注履歴</button>
+    </div>
+    <div style="padding:10px 16px;background:#EEF4FF;border-bottom:2px solid #185FA5;flex-shrink:0">
+      <button onclick="openManualOrderModal()" style="width:100%;padding:14px;background:#185FA5;color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.5px">
+        ＋ アプリ外商品の発注を登録する
+      </button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:12px 16px" id="arrival-list">
       <div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="manual-order-history-overlay" onclick="if(event.target===this)closeManualOrderHistory()">
+  <div class="modal" style="width:600px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-title">
+      <span><i class="ti ti-history"></i> 発注履歴（アプリ外商品）</span>
+      <button class="close-btn" onclick="closeManualOrderHistory()">×</button>
+    </div>
+    <div style="padding:10px 16px;background:#FEF3CD;border-bottom:1px solid #EF9F27;font-size:13px;color:#856404">
+      <i class="ti ti-info-circle"></i> このページはアプリに登録されていない商品の発注履歴です。アプリ内商品の入出庫履歴は「履歴タブ」をご確認ください。
+    </div>
+    <div style="flex:1;overflow-y:auto" id="manual-order-history-list">
+      <div style="color:var(--text-tertiary);text-align:center;padding:32px">履歴はありません</div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="manual-order-overlay" onclick="if(event.target===this)closeManualOrderModal()">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">
+      <span><i class="ti ti-plus"></i> 発注登録</span>
+      <button class="close-btn" onclick="closeManualOrderModal()">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:600">商品名 <span style="color:#E24B4A">*</span></div>
+        <input class="sinput" id="mo-name" placeholder="例：コピー用紙A4" style="width:100%;font-size:16px"/>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:600">発注数 <span style="color:#E24B4A">*</span></div>
+        <input class="sinput" id="mo-qty" type="number" min="1" placeholder="例：10" style="width:100%;font-size:16px"/>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:600">入荷予定日（省略可）</div>
+        <input class="sinput" id="mo-date" type="date" style="width:100%;font-size:16px"/>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:600">発注先（省略可）</div>
+        <input class="sinput" id="mo-supplier" placeholder="例：Amazon、モノタロウ" style="width:100%;font-size:16px"/>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn p" onclick="saveManualOrder()" style="flex:1;font-size:15px;font-weight:700">登録</button>
+        <button class="btn" onclick="closeManualOrderModal()" style="font-size:15px">キャンセル</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2019,22 +2070,112 @@ function renderArrivalTab() {
     return;
   }
   el.innerHTML = arrivalList.map(function(a) {
-    var item = S.items.find(function(i){ return i.id === a.itemId; });
-    var stock = item ? item.stock : '?';
-    return '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px">'
-      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.itemName + '</div>'
-      + '<div style="margin-top:6px;display:flex;align-items:center;gap:12px">'
-      + '<span style="font-size:13px;color:var(--text-secondary)">現在庫: ' + stock + '</span>'
-      + '<span style="font-size:20px;font-weight:700;color:' + (a.orderQty ? '#185FA5' : '#AAA') + '">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
+    var item = a.itemId ? S.items.find(function(i){ return i.id === a.itemId; }) : null;
+    var orderedDate = new Date(a.orderedAt).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    var subInfo = a.manual
+      ? '<span style=\"font-size:13px;color:var(--text-secondary)\">発注日時: ' + orderedDate + (a.expectedDate ? '　入荷予定: ' + a.expectedDate : '') + (a.supplier ? '　発注先: ' + a.supplier : '') + '</span>'
+      : '<span style=\"font-size:13px;color:var(--text-secondary)\">現在庫: ' + (item ? item.stock : '?') + '</span>';
+    var borderColor = a.manual ? '#EF9F27' : 'var(--border)';
+    return '<div style=\"background:var(--bg-primary);border:1.5px solid ' + borderColor + ';border-radius:10px;padding:12px 16px;margin-bottom:8px\">'
+      + '<div style=\"display:flex;align-items:center;gap:10px;flex-wrap:wrap\">'
+      + '<div style=\"flex:1;min-width:0\">'
+      + '<div style=\"font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">' + a.itemName + (a.manual ? ' <span style=\"font-size:11px;background:#FEF3CD;color:#856404;border-radius:4px;padding:1px 6px\">手動登録</span>' : '') + '</div>'
+      + '<div style=\"margin-top:6px;display:flex;align-items:center;gap:12px\">'
+      + subInfo
+      + '<span style=\"font-size:20px;font-weight:700;color:' + (a.orderQty ? '#185FA5' : '#AAA') + '\">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
       + '</div>'
       + '</div>'
-      + '<button class="btn" onclick="editArrivalQty(\'' + a.id + '\')" style="font-size:13px"><i class="ti ti-edit"></i> 発注数</button>'
-      + '<button class="btn p" onclick="completeArrival(\'' + a.id + '\')" style="font-size:13px;font-weight:700"><i class="ti ti-check"></i> 入荷済み</button>'
-      + '<button class="btn" onclick="removeArrival(\'' + a.id + '\')" style="font-size:13px;color:#A32D2D;border-color:#E24B4A">取消</button>'
+      + '<button class=\"btn\" onclick=\"editArrivalQty(\'' + a.id + '\')\">発注数</button>'
+      + '<button class=\"btn p\" onclick=\"completeArrival(\'' + a.id + '\')\">入荷済み</button>'
+      + '<button class=\"btn\" onclick=\"removeArrival(\'' + a.id + '\')\">取消</button>'
       + '</div></div>';
   }).join('');
+}
+
+// ===== 手動発注履歴 =====
+var manualOrderHistory = [];
+
+function openManualOrderHistory() {
+  if (window.fbLoadManualOrderHistoryImpl) {
+    window.fbLoadManualOrderHistoryImpl().then(renderManualOrderHistory);
+  } else {
+    renderManualOrderHistory();
+  }
+  document.getElementById('manual-order-history-overlay').classList.add('show');
+}
+function closeManualOrderHistory() {
+  document.getElementById('manual-order-history-overlay').classList.remove('show');
+}
+function renderManualOrderHistory() {
+  var el = document.getElementById('manual-order-history-list');
+  if (!el) return;
+  // 5年分のみ保持
+  var cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
+  manualOrderHistory = manualOrderHistory.filter(function(h){ return new Date(h.arrivedAt) >= cutoff; });
+  if (!manualOrderHistory.length) {
+    el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:32px">履歴はありません</div>';
+    return;
+  }
+  // 新しい順に表示
+  var sorted = manualOrderHistory.slice().sort(function(a,b){ return new Date(b.arrivedAt)-new Date(a.arrivedAt); });
+  el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:14px">'
+    + '<thead><tr style="background:var(--bg-secondary)">'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷日時</th>'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">商品名</th>'
+    + '<th style="padding:8px 12px;text-align:right;font-weight:600">発注数</th>'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">発注先</th>'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷予定日</th>'
+    + '</tr></thead><tbody>'
+    + sorted.map(function(h, i) {
+        var dt = new Date(h.arrivedAt).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        var bg = i%2===0 ? 'var(--bg-primary)' : 'var(--bg-secondary)';
+        return '<tr style="background:'+bg+';border-bottom:1px solid var(--border)">'
+          + '<td style="padding:8px 12px">'+dt+'</td>'
+          + '<td style="padding:8px 12px;font-weight:600">'+h.itemName+'</td>'
+          + '<td style="padding:8px 12px;text-align:right;font-weight:700;color:#185FA5">'+h.orderQty+'個</td>'
+          + '<td style="padding:8px 12px;color:var(--text-secondary)">'+(h.supplier||'—')+'</td>'
+          + '<td style="padding:8px 12px;color:var(--text-secondary)">'+(h.expectedDate||'—')+'</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+
+function openManualOrderModal() {
+  document.getElementById('mo-name').value = '';
+  document.getElementById('mo-qty').value = '';
+  document.getElementById('mo-date').value = '';
+  document.getElementById('manual-order-overlay').classList.add('show');
+}
+function closeManualOrderModal() {
+  document.getElementById('manual-order-overlay').classList.remove('show');
+}
+function saveManualOrder() {
+  var name = document.getElementById('mo-name').value.trim();
+  var qty = parseInt(document.getElementById('mo-qty').value);
+  var date = document.getElementById('mo-date').value;
+  var supplier = document.getElementById('mo-supplier').value.trim();
+  if (!name) { alert('商品名を入力してください'); return; }
+  if (!qty || qty < 1) { alert('発注数を入力してください'); return; }
+  var entry = {
+    id: 'ar-' + Date.now(),
+    itemId: null,
+    itemName: name,
+    orderQty: qty,
+    orderedAt: new Date().toISOString(),
+    expectedDate: date || null,
+    supplier: supplier || null,
+    manual: true,
+    fromOrderRequest: false
+  };
+  window.arrivalList = window.arrivalList || [];
+  window.arrivalList.push(entry);
+  if (window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
+  renderArrivalTab();
+  var badge = document.getElementById('arrival-badge');
+  if (badge) { badge.style.display = 'inline'; badge.textContent = window.arrivalList.length; }
+  closeManualOrderModal();
+  showToast('✓ 「' + name + '」を発注登録しました');
 }
 
 function orderItem(itemId, btn) {
@@ -2094,15 +2235,17 @@ function completeArrival(id) {
   var qty = a.orderQty;
   if (!qty) { alert('発注数を先に設定してください'); return; }
   if (!confirm('「' + a.itemName + '」' + qty + '個を入荷済みにしますか？在庫が' + qty + '個増えます。')) return;
-  var item = S.items.find(function(i){ return i.id === a.itemId; });
-  if (item) {
-    item.stock += qty;
-    var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
-    if (window.fbAddHistory) fbAddHistory(record);
-    if (window.fbSave) fbSave();
-    renderSummary(); drawMap();
-    var ap = document.querySelector('.panel.active');
-    if (ap && ap.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
+  if (!a.manual) {
+    var item = S.items.find(function(i){ return i.id === a.itemId; });
+    if (item) {
+      item.stock += qty;
+      var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
+      if (window.fbAddHistory) fbAddHistory(record);
+      if (window.fbSave) fbSave();
+      renderSummary(); drawMap();
+      var ap = document.querySelector('.panel.active');
+      if (ap && ap.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
+    }
   }
   // 発注依頼リストとも連携
   if (a.fromOrderRequest) {
@@ -2113,7 +2256,21 @@ function completeArrival(id) {
     renderOrderList();
   }
   arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  window.arrivalList = arrivalList;
+  // 手動登録品目は履歴に追加
+  if (a.manual) {
+    manualOrderHistory.push({
+      id: 'mh-' + Date.now(),
+      itemName: a.itemName,
+      orderQty: qty,
+      supplier: a.supplier || null,
+      expectedDate: a.expectedDate || null,
+      orderedAt: a.orderedAt,
+      arrivedAt: new Date().toISOString()
+    });
+    if (window.fbSaveManualOrderHistoryImpl) window.fbSaveManualOrderHistoryImpl();
+  }
+  if(window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
   renderArrivalTab();
   showToast('✓ 入荷済みにしました（在庫 +' + qty + '）');
 }
@@ -2507,6 +2664,23 @@ window.fbLoadArrivalListImpl = async function() {
     window.arrivalList = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : Object.values(snap.val())) : [];
     if (typeof renderArrivalTab === 'function') renderArrivalTab();
   } catch(e) { console.error('fbLoadArrivalList error:', e); }
+};
+// 手動発注履歴のFirebase保存・読込
+window.fbSaveManualOrderHistoryImpl = async function() {
+  try {
+    var cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 5);
+    var list = (typeof manualOrderHistory !== 'undefined' ? manualOrderHistory : [])
+      .filter(function(h){ return new Date(h.arrivedAt) >= cutoff; });
+    await set(ref(db, 'manualOrderHistory'), list.length ? list : null);
+  } catch(e) { console.error('fbSaveManualOrderHistory error:', e); }
+};
+window.fbLoadManualOrderHistoryImpl = async function() {
+  try {
+    var snap = await get(ref(db, 'manualOrderHistory'));
+    if (typeof manualOrderHistory !== 'undefined') {
+      manualOrderHistory = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : Object.values(snap.val())) : [];
+    }
+  } catch(e) { console.error('fbLoadManualOrderHistory error:', e); }
 };
 window._fbResolve();
 </script>

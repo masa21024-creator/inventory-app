@@ -542,11 +542,15 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
           <select class="ssel" id="ie-tier" style="flex:1;font-size:14px"></select>
         </div>
       </div>
-      <!-- 最大在庫数・単価 -->
+      <!-- 最大在庫数・発注点・単価 -->
       <div style="display:flex;gap:10px">
         <div style="flex:1">
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;font-weight:600">最大在庫数</div>
           <input class="sinput" id="ie-max" type="number" min="1" style="width:100%"/>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;font-weight:600">発注点</div>
+          <input class="sinput" id="ie-order-at" type="number" min="0" style="width:100%"/>
         </div>
         <div style="flex:1">
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;font-weight:600">単価（税込・円）</div>
@@ -1570,6 +1574,7 @@ function openItemEditModal(itemId){
   document.getElementById('ie-name').value = item.name;
   document.getElementById('ie-code').value = item.code||'';
   document.getElementById('ie-max').value = item.max||30;
+  document.getElementById('ie-order-at').value = item.orderAt||10;
   document.getElementById('ie-price').value = item.unitPrice||0;
   document.getElementById('ie-url').value = item.orderUrl||'';
   // カテゴリセレクトを更新
@@ -1621,6 +1626,7 @@ function saveItemEdit(){
   item.code = document.getElementById('ie-code').value.trim();
   item.cat = document.getElementById('ie-cat').value||item.cat;
   item.max = parseInt(document.getElementById('ie-max').value)||item.max;
+  item.orderAt = parseInt(document.getElementById('ie-order-at').value)||item.orderAt;
   item.unitPrice = parseInt(document.getElementById('ie-price').value)||0;
   item.orderUrl = document.getElementById('ie-url').value.trim();
   const newShelfId = document.getElementById('ie-shelf').value;
@@ -2006,8 +2012,7 @@ function renderArrivalTab() {
   var badge = document.getElementById('arrival-badge');
   if (!el) { alert('arrival-list要素が見つかりません'); return; }
   var arrivalList = window.arrivalList || [];
-  // デバッグ：強制表示
-  el.innerHTML = '<div style="padding:20px;background:red;color:white;font-size:18px">DEBUG: arrivalList件数=' + arrivalList.length + ' / window.arrivalList件数=' + (window.arrivalList||[]).length + '</div>' + el.innerHTML;
+
   if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
   if (!arrivalList.length) {
     el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';
@@ -2020,7 +2025,10 @@ function renderArrivalTab() {
       + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.itemName + '</div>'
-      + '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">現在庫: ' + stock + ' / 発注数: <strong>' + (a.orderQty || '未設定') + '</strong></div>'
+      + '<div style="margin-top:6px;display:flex;align-items:center;gap:12px">'
+      + '<span style="font-size:13px;color:var(--text-secondary)">現在庫: ' + stock + '</span>'
+      + '<span style="font-size:20px;font-weight:700;color:' + (a.orderQty ? '#185FA5' : '#AAA') + '">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
+      + '</div>'
       + '</div>'
       + '<button class="btn" onclick="editArrivalQty(\'' + a.id + '\')" style="font-size:13px"><i class="ti ti-edit"></i> 発注数</button>'
       + '<button class="btn p" onclick="completeArrival(\'' + a.id + '\')" style="font-size:13px;font-weight:700"><i class="ti ti-check"></i> 入荷済み</button>'
@@ -2173,12 +2181,16 @@ function renderOrderList() {
     const pct = item ? Math.min(100, Math.round(item.stock/item.max*100)) : 0;
     const cardBg = r.status==='pending' ? 'rgba(252,235,235,0.6)' : r.status==='in_progress' ? 'rgba(230,241,251,0.6)' : 'rgba(234,243,222,0.6)';
     const cardBorder = r.status==='pending' ? '#F09595' : r.status==='in_progress' ? '#85B7EB' : '#97C459';
+    // 入荷待ちリストから発注数を取得
+    const arrEntry = (window.arrivalList||[]).find(function(a){ return a.itemId === r.itemId; });
+    const orderQtyLabel = arrEntry && arrEntry.orderQty ? `<span style="font-size:14px;font-weight:700;color:#185FA5;margin-left:8px">${arrEntry.orderQty}個発注済み</span>` : '';
     return `<div style="border:1.5px solid ${cardBorder};border-radius:var(--radius);padding:14px 18px;background:${cardBg};margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:16px">
         <div style="flex:1;min-width:0;cursor:pointer" onclick="jumpToOrderItem('${r.itemId}')">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
             <span style="font-size:17px;font-weight:700">${r.itemName}</span>
             <span style="font-size:13px;font-weight:700;color:${statusColor}">${statusLabel}</span>
+            ${orderQtyLabel}
           </div>
           <div style="font-size:15px;color:var(--text-secondary);margin-bottom:10px">依頼: ${dt}　依頼時在庫: <strong>${r.stockAtRequest !== undefined ? r.stockAtRequest : '不明'}</strong>個</div>
           <div style="display:flex;align-items:center;gap:12px">

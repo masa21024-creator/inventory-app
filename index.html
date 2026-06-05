@@ -2209,7 +2209,7 @@ function renderOrderList() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
           ${r.status==='pending' ? `<button class="btn" onclick="setOrderStatus('${r.id}','in_progress')" style="font-size:13px;padding:6px 14px;color:#185FA5;border-color:#185FA5;white-space:nowrap">対応中にする</button>` : ''}
-          ${r.status==='in_progress' ? `<button class="btn p" onclick="completeArrivalByOrderId('${r.id}')" style="font-size:13px;padding:6px 14px;white-space:nowrap">対応完了</button>` : ''}
+          ${r.status==='in_progress' ? `<button class="btn p" onclick="completeArrivalByOrderId('${r.id}')" style="font-size:13px;padding:6px 14px;white-space:nowrap;font-weight:700">入荷済み</button>` : ''}
         </div>
       </div>
     </div>`;

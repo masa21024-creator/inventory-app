@@ -2190,7 +2190,6 @@ function renderOrderList() {
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
             <span style="font-size:17px;font-weight:700">${r.itemName}</span>
             <span style="font-size:13px;font-weight:700;color:${statusColor}">${statusLabel}</span>
-            ${orderQtyLabel}
           </div>
           <div style="font-size:15px;color:var(--text-secondary);margin-bottom:10px">依頼: ${dt}　依頼時在庫: <strong>${r.stockAtRequest !== undefined ? r.stockAtRequest : '不明'}</strong>個</div>
           <div style="display:flex;align-items:center;gap:12px">
@@ -2207,7 +2206,8 @@ function renderOrderList() {
             </div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end" onclick="event.stopPropagation()">
+          ${arrEntry && arrEntry.orderQty ? `<span style="font-size:18px;font-weight:800;color:#185FA5;background:#EEF4FF;border-radius:8px;padding:4px 10px;">${arrEntry.orderQty}個発注済み</span>` : ''}
           ${r.status==='pending' ? `<button class="btn" onclick="setOrderStatus('${r.id}','in_progress')" style="font-size:13px;padding:6px 14px;color:#185FA5;border-color:#185FA5;white-space:nowrap">対応中にする</button>` : ''}
           ${r.status==='in_progress' ? `<button class="btn p" onclick="completeArrivalByOrderId('${r.id}')" style="font-size:13px;padding:6px 14px;white-space:nowrap;font-weight:700">入荷済み</button>` : ''}
         </div>

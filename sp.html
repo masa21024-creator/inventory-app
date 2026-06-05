@@ -454,13 +454,15 @@ function drawMap() {
     sp_ctx.textAlign='left'; sp_ctx.textBaseline='alphabetic'; sp_ctx.restore();
   });
   S.shelves.filter(function(s) { return s.roomId === currentRoom; }).forEach(function(shelf) {
-    var sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H),th=sh/shelf.tiers;
+    var sx=px(shelf.x,W),sy=px(shelf.y,H),sw=px(shelf.w,W),sh=px(shelf.h,H);
+    var horiz=sw>sh, ts=horiz?sw/shelf.tiers:sh/shelf.tiers;
     sp_ctx.strokeStyle='#ccc'; sp_ctx.lineWidth=1; sp_ctx.fillStyle='#fff';
     sp_ctx.beginPath(); if(sp_ctx.roundRect) sp_ctx.roundRect(sx,sy,sw,sh,5); else sp_ctx.rect(sx,sy,sw,sh); sp_ctx.fill(); sp_ctx.stroke();
     sp_ctx.font='bold 10px sans-serif'; sp_ctx.fillStyle='#888'; sp_ctx.textAlign='center';
     sp_ctx.fillText(shelf.name, sx+sw/2, sy-4); sp_ctx.textAlign='left';
     for (var t=1; t<=shelf.tiers; t++) {
-      var ty=sy+(t-1)*th;
+      var tx=horiz?sx+(t-1)*ts:sx, ty=horiz?sy:sy+(t-1)*ts;
+      var tw=horiz?ts:sw, th=horiz?sh:ts;
       var items=S.items.filter(function(i) { return i.shelfId===shelf.id && i.tier===t; });
       var isHL=highlightIds.length>0 && items.some(function(i) { return highlightIds.includes(i.id); });
       var fill='#f8f7f4';
@@ -469,16 +471,19 @@ function drawMap() {
         var s2=sc(w); fill=s2==='low'?'#FCEBEB':s2==='warn'?'#FAEEDA':'#EAF3DE';
       }
       if (isHL) fill='#FFD600';
-      sp_ctx.fillStyle=fill; sp_ctx.fillRect(sx+1,ty+1,sw-2,th-2);
-      if(t<shelf.tiers){sp_ctx.strokeStyle='#e8e5e0';sp_ctx.lineWidth=0.5;sp_ctx.beginPath();sp_ctx.moveTo(sx+3,ty+th);sp_ctx.lineTo(sx+sw-3,ty+th);sp_ctx.stroke();}
+      sp_ctx.fillStyle=fill; sp_ctx.fillRect(tx+1,ty+1,tw-2,th-2);
+      if(t<shelf.tiers){sp_ctx.strokeStyle='#e8e5e0';sp_ctx.lineWidth=0.5;sp_ctx.beginPath();
+        if(horiz){sp_ctx.moveTo(tx+ts,ty+3);sp_ctx.lineTo(tx+ts,ty+sh-3);}
+        else{sp_ctx.moveTo(sx+3,ty+ts);sp_ctx.lineTo(sx+sw-3,ty+ts);}
+        sp_ctx.stroke();}
       var tl=t===1?'上段':t===shelf.tiers?'下段':(t+'段目');
       sp_ctx.font='9px sans-serif'; sp_ctx.fillStyle='#bbb'; sp_ctx.textAlign='center';
-      sp_ctx.fillText(tl, sx+sw/2, ty+th/2+4); sp_ctx.textAlign='left';
+      sp_ctx.fillText(tl, tx+tw/2, ty+th/2+4); sp_ctx.textAlign='left';
       if (items.length) {
         var txt=items.length>1?(items.length+'品'):items[0].name.slice(0,5);
-        sp_ctx.font='8px sans-serif'; sp_ctx.fillStyle='#555'; sp_ctx.fillText(txt,sx+3,ty+12);
+        sp_ctx.font='8px sans-serif'; sp_ctx.fillStyle='#555'; sp_ctx.fillText(txt,tx+3,ty+12);
         var w2=items.reduce(function(a,b){var o={low:0,warn:1,ok:2};return o[sc(a)]<o[sc(b)]?a:b;});
-        sp_ctx.beginPath(); sp_ctx.arc(sx+sw-6,ty+8,3.5,0,Math.PI*2);
+        sp_ctx.beginPath(); sp_ctx.arc(tx+tw-6,ty+8,3.5,0,Math.PI*2);
         sp_ctx.fillStyle=sc(w2)==='low'?'#E24B4A':sc(w2)==='warn'?'#EF9F27':'#1D9E75'; sp_ctx.fill();
       }
     }
@@ -493,7 +498,9 @@ function onMapClick(e) {
     if (s.roomId !== currentRoom) continue;
     var sx=px(s.x,W),sy=px(s.y,H),sw=px(s.w,W),sh=px(s.h,H);
     if (mx>=sx && mx<=sx+sw && my>=sy && my<=sy+sh) {
-      var t=Math.min(s.tiers, Math.floor((my-sy)/(sh/s.tiers))+1);
+      var horiz2=sw>sh;
+      var t=horiz2 ? Math.min(s.tiers, Math.floor((mx-sx)/(sw/s.tiers))+1)
+                   : Math.min(s.tiers, Math.floor((my-sy)/(sh/s.tiers))+1);
       var items=S.items.filter(function(i) { return i.shelfId===s.id && i.tier===t; });
       var tl=t===1?'上段':t===s.tiers?'下段':(t+'段目');
       highlightIds = items.map(function(i) { return i.id; });

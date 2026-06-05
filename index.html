@@ -250,11 +250,11 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <!-- 検索結果・ピックアップカード（バーコード・手入力共通） -->
       <div id="scan-status-msg-manual" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary)"></div>
       <div id="scan-multi-result-manual" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
-      <!-- ピックアップ品目カード -->
-      <div id="scan-pickup" style="display:none"></div>
     </div>
     <!-- 右カラム：履歴 -->
     <div style="display:flex;flex-direction:column;gap:8px">
+      <!-- ピックアップ品目カード -->
+      <div id="scan-pickup" style="display:none"></div>
       <div style="font-size:16px;font-weight:700;color:var(--text-secondary)">スキャン履歴（今回のセッション）</div>
       <div id="scan-log" style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:calc(100vh - 200px)"></div>
     </div>
@@ -2007,6 +2007,7 @@ function renderArrivalTab() {
   var el = document.getElementById('arrival-list');
   var badge = document.getElementById('arrival-badge');
   if (!el) return;
+  var arrivalList = window.arrivalList || [];
   if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
   if (!arrivalList.length) {
     el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';
@@ -2045,31 +2046,34 @@ function orderItem(itemId, btn) {
 
 function addToArrival(itemId, itemName, fromOrderRequest) {
   itemName = String(itemName).replace(/&apos;/g, "'");
-  var exists = arrivalList.find(function(a){ return a.itemId === itemId; });
+  window.arrivalList = window.arrivalList || [];
+  var exists = window.arrivalList.find(function(a){ return a.itemId === itemId; });
   if (exists) { showToast('「' + itemName + '」はすでに入荷待ちリストにあります'); return; }
   var entry = { id: 'ar-' + Date.now(), itemId: itemId, itemName: itemName, orderQty: null, orderedAt: new Date().toISOString(), fromOrderRequest: fromOrderRequest || false };
-  arrivalList.push(entry);
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  window.arrivalList.push(entry);
+  if(window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
   renderArrivalTab();
   showToast('✓ 「' + itemName + '」を入荷待ちリストに追加しました');
   var badge = document.getElementById('arrival-badge');
-  if (badge) { badge.style.display = 'inline'; badge.textContent = arrivalList.length; }
+  if (badge) { badge.style.display = 'inline'; badge.textContent = window.arrivalList.length; }
 }
 
 function editArrivalQty(id) {
-  var a = arrivalList.find(function(a){ return a.id === id; });
+  window.arrivalList = window.arrivalList || [];
+  var a = window.arrivalList.find(function(a){ return a.id === id; });
   if (!a) return;
   var val = prompt('発注数を入力してください', a.orderQty || '');
   if (val === null) return;
   var qty = parseInt(val);
   if (isNaN(qty) || qty < 1) { alert('正しい数量を入力してください'); return; }
   a.orderQty = qty;
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  if(window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
   renderArrivalTab();
 }
 
 function completeArrival(id) {
-  var a = arrivalList.find(function(a){ return a.id === id; });
+  window.arrivalList = window.arrivalList || [];
+  var a = window.arrivalList.find(function(a){ return a.id === id; });
   if (!a) return;
   var qty = a.orderQty;
   if (!qty) { alert('発注数を先に設定してください'); return; }
@@ -2117,8 +2121,8 @@ function completeArrivalByOrderId(orderId) {
 function removeArrival(id) {
   var a = arrivalList.find(function(x){ return x.id === id; });
   if (!a || !confirm('「' + a.itemName + '」を入荷待ちリストから取り消しますか？')) return;
-  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  window.arrivalList = (window.arrivalList||[]).filter(function(x){ return x.id !== id; });
+  if(window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
   renderArrivalTab();
 }
 

@@ -2041,6 +2041,14 @@ function orderItem(itemId, btn) {
   var item = S.items.find(function(i){ return i.id === itemId; });
   if (!item) return;
   addToArrival(itemId, item.name, false);
+  // 発注依頼リストにあれば自動で対応中に
+  var req = orderRequests.find(function(r){ return r.itemId === itemId && r.status === 'pending'; });
+  if (req) {
+    req.status = 'in_progress';
+    if (window.fbSave) fbSave();
+    if (window.fbSaveOrderRequests) fbSaveOrderRequests();
+    renderOrderList();
+  }
   // ボタンの視覚フィードバック
   if (btn) {
     var orig = btn.textContent;

@@ -8,7 +8,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>備品管理ナビ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg-primary:#ffffff;--bg-secondary:#f5f5f3;--bg-tertiary:#eeece8;--text-primary:#1a1a1a;--text-secondary:#666;--text-tertiary:#aaa;--border:rgba(0,0,0,0.12);--border-strong:rgba(0,0,0,0.25);--radius:8px;--radius-lg:12px;}
@@ -166,6 +165,7 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div class="tab" onclick="switchTab('scan',this)"><i class="ti ti-scan"></i> スキャン</div>
       <div class="tab" onclick="switchTab('history',this)"><i class="ti ti-history"></i> 履歴</div>
       <div class="tab" onclick="switchTab('export',this)"><i class="ti ti-table-export"></i> 出力</div>
+      <div class="tab" onclick="switchTab('arrival',this)"><i class="ti ti-package-import"></i> 入荷待ち <span id="arrival-badge" style="display:none;background:#185FA5;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px"></span></div>
       <div class="tab" onclick="switchTab('settings',this)"><i class="ti ti-settings"></i> 設定</div>
       <div class="tab" onclick="switchTab('order',this)" style="color:#A32D2D"><i class="ti ti-clipboard-list"></i> 発注依頼 <span id="order-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px"></span></div>
     </div>
@@ -246,9 +246,10 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div class="scan-card">
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">📝 手入力検索（Enter）</div>
         <input style="width:100%;padding:12px;border:2px solid var(--border);border-radius:var(--radius);font-size:18px;outline:none;background:var(--bg-primary);color:var(--text-primary)" type="text" id="scan-input" placeholder="品目名・コードを入力してEnter..." onkeydown="onScanKey(event)"/>
-        <div id="scan-status-msg-manual" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary);margin-top:6px"></div>
-        <div id="scan-multi-result-manual" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
       </div>
+      <!-- 検索結果・ピックアップカード（バーコード・手入力共通） -->
+      <div id="scan-status-msg-manual" style="display:none;font-size:16px;font-weight:700;padding:8px 12px;border-radius:8px;background:var(--bg-secondary)"></div>
+      <div id="scan-multi-result-manual" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;background:var(--bg-primary)"></div>
       <!-- ピックアップ品目カード -->
       <div id="scan-pickup" style="display:none"></div>
     </div>
@@ -363,14 +364,12 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <input class="sinput" id="item-search-input" placeholder="品目名で検索..." oninput="renderItemCodeList()" style="flex:1;font-size:18px"/>
       </div>
-      <div style="font-size:16px;color:var(--text-tertiary);margin-bottom:6px"><i class="ti ti-barcode"></i> バーコード読取 ／ <i class="ti ti-edit"></i> 詳細編集</div>
       <div id="item-code-list" style="display:flex;flex-direction:column;gap:3px;max-height:220px;overflow-y:auto"></div>
     </div>
     <div class="settings-sec"><h3>品目マスタ — 新規追加</h3>
       <div class="srow"><input class="sinput" id="ni-name" placeholder="品目名"/></div>
       <div class="srow" style="align-items:center">
         <input class="sinput" id="ni-code" placeholder="JANコード・品番（省略可）"/>
-        <button class="btn" onclick="openJanScanner()" title="カメラでバーコードを読み取る" style="flex-shrink:0;display:flex;align-items:center;gap:4px"><i class="ti ti-barcode"></i> 読取</button>
       </div>
       <div style="margin-bottom:6px">
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
@@ -479,6 +478,17 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 </div>
 </div>
 </div>
+<div class="panel" id="panel-arrival">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+    <div style="padding:10px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:17px;font-weight:700;color:#185FA5"><i class="ti ti-package-import"></i> 入荷待ちリスト</span>
+      <span style="font-size:13px;color:var(--text-tertiary)">発注済み品目の入荷管理</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 16px" id="arrival-list">
+      <div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="list-overlay" onclick="if(event.target===this)closeListModal()">
   <div class="modal">
     <div class="modal-title"><span id="list-modal-title"></span><button class="close-btn" onclick="closeListModal()">×</button></div>
@@ -518,12 +528,6 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;font-weight:600">JANコード / バーコード</div>
         <div style="display:flex;gap:6px;align-items:center">
           <input class="sinput" id="ie-code" style="flex:1" placeholder="コード番号"/>
-          <button class="btn" onclick="openJanScannerForEdit()" style="flex-shrink:0"><i class="ti ti-camera"></i> 読取</button>
-        </div>
-        <!-- バーコード表示エリア -->
-        <div id="ie-barcode-wrap" style="margin-top:8px;text-align:center;padding:10px;background:var(--bg-secondary);border-radius:var(--radius);display:none">
-          <svg id="ie-barcode-svg"></svg>
-          <div id="ie-barcode-num" style="font-size:17px;color:var(--text-secondary);margin-top:4px"></div>
         </div>
       </div>
       <!-- カテゴリ -->
@@ -600,12 +604,6 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   </div>
 </div>
 <!-- JAN コードスキャナーモーダル -->
-<div class="overlay" id="jan-overlay" onclick="if(event.target===this)closeJanScanner()">
-  <div class="modal" style="width:360px;max-height:none">
-    <div class="modal-title">
-      <span><i class="ti ti-barcode"></i> JANコード読み取り</span>
-      <button class="close-btn" onclick="closeJanScanner()">×</button>
-    </div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div style="position:relative;background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:4/3">
         <video id="jan-video" style="width:100%;height:100%;object-fit:cover" playsinline muted></video>
@@ -636,7 +634,7 @@ function renderSummary(){
   if(sb){sb.innerHTML=
     `<button class="sum-btn warn" onclick="openListModal('warn')"><i class="ti ti-alert-circle"></i> 少なめ <span class="cnt-badge warn">${warn}</span></button>`
     +`<button class="sum-btn low" onclick="openListModal('low')"><i class="ti ti-alert-triangle"></i> 要発注 <span class="cnt-badge low">${low}</span></button>`;}}
-function openListModal(type){S.currentListType=type;const items=S.items.filter(i=>sc(i)===type),isLow=type==='low';document.getElementById('list-modal-title').innerHTML=`<i class="ti ti-${isLow?'alert-triangle':'alert-circle'}"></i> ${isLow?'発注が必要な品目':'在庫が少なめな品目'}`;const body=document.getElementById('list-modal-body');body.innerHTML=!items.length?'<div style="text-align:center;padding:24px;color:var(--text-tertiary);font-size:18px">該当する品目はありません</div>':items.map(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId);const room=shelf?S.rooms.find(r=>r.id===shelf.roomId):null;const tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':`${item.tier}段目`):'';const hasUrl=item.orderUrl&&item.orderUrl.trim();return `<div class="modal-item-row" style="cursor:pointer" onclick="closeListModal();jumpToOrderItem('${item.id}')"><div class="dot ${type}"></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div><div style="font-size:16px;color:var(--text-secondary)">${room?`${room.name} › ${shelf.name} › ${tl}`:''}</div></div><div style="font-size:17px;color:${isLow?'#A32D2D':'#854F0B'};white-space:nowrap;margin-right:6px;font-weight:500">${item.stock}/${item.max}</div><div onclick="event.stopPropagation()">${hasUrl?`<a class="order-link-btn" href="${item.orderUrl}" target="_blank" rel="noopener"><i class="ti ti-external-link" style="font-size:17px"></i> 発注</a>`:`<button class="order-link-btn" style="border-color:var(--border-strong);color:var(--text-secondary);background:var(--bg-secondary)" onclick="openUrlModal('${item.id}')"><i class="ti ti-link" style="font-size:17px"></i> URL登録</button>`}</div></div>`;}).join('');document.getElementById('list-overlay').classList.add('show');}
+function openListModal(type){S.currentListType=type;const items=S.items.filter(i=>sc(i)===type),isLow=type==='low';document.getElementById('list-modal-title').innerHTML=`<i class="ti ti-${isLow?'alert-triangle':'alert-circle'}"></i> ${isLow?'発注が必要な品目':'在庫が少なめな品目'}`;const body=document.getElementById('list-modal-body');body.innerHTML=!items.length?'<div style="text-align:center;padding:24px;color:var(--text-tertiary);font-size:18px">該当する品目はありません</div>':items.map(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId);const room=shelf?S.rooms.find(r=>r.id===shelf.roomId):null;const tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':`${item.tier}段目`):'';const hasUrl=item.orderUrl&&item.orderUrl.trim();return `<div class="modal-item-row" style="cursor:pointer" onclick="closeListModal();jumpToOrderItem('${item.id}')"><div class="dot ${type}"></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div><div style="font-size:16px;color:var(--text-secondary)">${room?`${room.name} › ${shelf.name} › ${tl}`:''}</div></div><div style="font-size:17px;color:${isLow?'#A32D2D':'#854F0B'};white-space:nowrap;margin-right:6px;font-weight:500">${item.stock}/${item.max}</div><div onclick="event.stopPropagation()">${hasUrl?`<a class="order-link-btn" href="${item.orderUrl}" target="_blank" rel="noopener"><i class="ti ti-external-link" style="font-size:17px"></i> 発注ページ</a>`:``}<button class="order-link-btn" style="border-color:var(--border-strong);color:var(--text-secondary);background:var(--bg-secondary)" onclick="event.stopPropagation();orderItem('${item.id}')" ><i class="ti ti-package-import" style="font-size:17px"></i> 発注</button></div></div>`;}).join('');document.getElementById('list-overlay').classList.add('show');}
 function closeListModal(){document.getElementById('list-overlay').classList.remove('show');}
 function exportListCSV(){const items=S.items.filter(i=>sc(i)===S.currentListType);let csv='品目名,コード,場所,現在庫,最大,発注点,発注URL\n';items.forEach(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId);const room=shelf?S.rooms.find(r=>r.id===shelf.roomId):{name:''};csv+=`"${item.name}","${item.code||''}","${room.name} ${shelf?shelf.name:''} ${item.tier}段",${item.stock},${item.max},${item.orderAt},"${item.orderUrl||''}"\n`;});dlCSV(csv,(S.currentListType==='low'?'発注リスト':'少なめリスト')+'.csv');}
 function openUrlModal(itemId){S.urlEditItemId=itemId;const item=S.items.find(i=>i.id===itemId);document.getElementById('url-modal-title').textContent=`発注URL — ${item.name}`;document.getElementById('url-input').value=item.orderUrl||'';document.getElementById('url-overlay').classList.add('show');}
@@ -1002,7 +1000,7 @@ function exportHistoryCSVData(filtered){
 
 
 
-function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();if(tab==='export')renderExportTab();}
+function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();if(tab==='export')renderExportTab();if(tab==='arrival')renderArrivalTab();}
 let canvas,ctx,wrap,drag=null,didDrag=false;
 function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',(e)=>{
   if(S.editMode && !didDrag && drag && drag.shelf){
@@ -1064,7 +1062,7 @@ function onTE(){if(touchStart&&Date.now()-touchStart.time<300&&!didDrag){const o
 function toggleEdit(){S.editMode=!S.editMode;document.getElementById('edit-toggle').classList.toggle('on',S.editMode);document.getElementById('edit-hint').style.display=S.editMode?'inline':'none';document.getElementById('add-obj-btn').style.display=S.editMode?'inline-flex':'none';document.getElementById('add-shelf-area').style.display=S.editMode?'flex':'none';if(!S.editMode){canvas.style.cursor='default';if(window.fbSave)fbSave();}drawMap();}
 function renderRoomTabs(){document.getElementById('room-tabs').innerHTML=S.rooms.map(r=>`<div class="room-btn ${r.id===S.currentRoom?'active':''}" onclick="selectRoom('${r.id}')">${r.name}</div>`).join('');}
 function selectRoom(id){S.currentRoom=id;S.selectedTierKey=null;renderRoomTabs();closeDetail();drawMap();}
-function selectTier(tierKey){S.selectedTierKey=tierKey;const [shelfId,tierStr]=tierKey.split('-'),tier=parseInt(tierStr);const shelf=S.shelves.find(s=>s.id===shelfId),room=S.rooms.find(r=>r.id===shelf.roomId);const items=S.items.filter(i=>i.shelfId===shelfId&&i.tier===tier);const tl=tier===1?'上段':tier===shelf.tiers?'下段':`${tier}段目`;document.getElementById('detail-empty').style.display='none';const dc=document.getElementById('detail-content');dc.style.display='flex';dc.innerHTML='';const title=document.createElement('div');title.style.cssText='font-size:18px;font-weight:700';title.textContent=`${shelf.name} › ${tl}`;const loc=document.createElement('div');loc.style.cssText='font-size:16px;color:var(--text-secondary);margin-bottom:4px';loc.textContent=room.name;dc.appendChild(title);dc.appendChild(loc);if(!items.length){const em=document.createElement('div');em.style.cssText='font-size:17px;color:var(--text-tertiary);text-align:center;padding:12px';em.textContent='品目なし';dc.appendChild(em);}else{items.forEach(item=>{const s=sc(item),pct=Math.min(100,Math.round(item.stock/item.max*100)),opct=Math.min(100,Math.round(item.orderAt/item.max*100));const hasUrl=item.orderUrl&&item.orderUrl.trim();let sb='';if(s==='warn')sb=`<button class="status-btn warn" onclick="openListModal('warn')">少なめ ↗</button>`;else if(s==='low')sb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none">発注する ↗</a>`:`<button class="status-btn low" onclick="openUrlModal('${item.id}')">URL登録 ＋</button>`;const row=document.createElement('div');row.className='item-row';row.innerHTML=`<div class="item-name-row"><span class="item-name">${item.name}</span>${sb}</div><div class="stock-bar-wrap"><div class="stock-bar ${s}" style="width:${pct}%"></div><div class="order-line" style="left:${opct}%"></div></div><div class="item-meta"><span>在庫:<strong>${item.stock}</strong>/${item.max}</span><span>発注点:${item.orderAt}</span></div><div class="qty-ctrl"><button class="qty-btn" onclick="chg('${item.id}',-1)">−</button><span class="qty-val">${item.stock}</span><button class="qty-btn" onclick="chg('${item.id}',1)">＋</button></div>`;dc.appendChild(row);});}drawMap();}
+function selectTier(tierKey){S.selectedTierKey=tierKey;const [shelfId,tierStr]=tierKey.split('-'),tier=parseInt(tierStr);const shelf=S.shelves.find(s=>s.id===shelfId),room=S.rooms.find(r=>r.id===shelf.roomId);const items=S.items.filter(i=>i.shelfId===shelfId&&i.tier===tier);const tl=tier===1?'上段':tier===shelf.tiers?'下段':`${tier}段目`;document.getElementById('detail-empty').style.display='none';const dc=document.getElementById('detail-content');dc.style.display='flex';dc.innerHTML='';const title=document.createElement('div');title.style.cssText='font-size:18px;font-weight:700';title.textContent=`${shelf.name} › ${tl}`;const loc=document.createElement('div');loc.style.cssText='font-size:16px;color:var(--text-secondary);margin-bottom:4px';loc.textContent=room.name;dc.appendChild(title);dc.appendChild(loc);if(!items.length){const em=document.createElement('div');em.style.cssText='font-size:17px;color:var(--text-tertiary);text-align:center;padding:12px';em.textContent='品目なし';dc.appendChild(em);}else{items.forEach(item=>{const s=sc(item),pct=Math.min(100,Math.round(item.stock/item.max*100)),opct=Math.min(100,Math.round(item.orderAt/item.max*100));const hasUrl=item.orderUrl&&item.orderUrl.trim();let sb='';if(s==='warn')sb=`<button class="status-btn warn" onclick="openListModal('warn')">少なめ ↗</button>`;else if(s==='low')sb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none">発注ページ ↗</a>`:``;const row=document.createElement('div');row.className='item-row';row.innerHTML=`<div class="item-name-row"><span class="item-name">${item.name}</span>${sb}</div><div class="stock-bar-wrap"><div class="stock-bar ${s}" style="width:${pct}%"></div><div class="order-line" style="left:${opct}%"></div></div><div class="item-meta"><span>在庫:<strong>${item.stock}</strong>/${item.max}</span><span>発注点:${item.orderAt}</span></div><div class="qty-ctrl"><button class="qty-btn" onclick="chg('${item.id}',-1)">−</button><span class="qty-val">${item.stock}</span><button class="qty-btn" onclick="chg('${item.id}',1)">＋</button></div>`;dc.appendChild(row);});}drawMap();}
 function chg(id,d){const item=S.items.find(i=>i.id===id);if(!item)return;const prev=item.stock;item.stock=Math.max(0,item.stock+d);addHistory(item,prev,item.stock,d>0?'入庫':'出庫');renderSummary();if(S.selectedTierKey)selectTier(S.selectedTierKey);}
 function setStk(id,v){const item=S.items.find(i=>i.id===id);if(!item)return;const prev=item.stock;item.stock=Math.max(0,parseInt(v)||0);addHistory(item,prev,item.stock,'直接入力');renderSummary();if(S.selectedTierKey)selectTier(S.selectedTierKey);}
 function closeDetail(){document.getElementById('detail-empty').style.display='';document.getElementById('detail-content').style.display='none';S.selectedTierKey=null;}
@@ -1098,7 +1096,9 @@ function showSearchResults(items){
     const hasUrl=item.orderUrl&&item.orderUrl.trim();
     let sb='';
     if(s==='warn')sb=`<button class="status-btn warn" onclick="openListModal('warn')">少なめ ↗</button>`;
-    else if(s==='low')sb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none">発注する ↗</a>`:`<button class="status-btn low" onclick="openUrlModal('${item.id}')">URL登録 ＋</button>`;
+    else if(s==='low')sb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none"
+>発注ページ ↗</a>`:``;
+    sb+=`<button class=\"status-btn\" style=\"background:#185FA5;border-color:#185FA5;color:#fff;font-size:13px;font-weight:700\" onclick=\"orderItem('${item.id}',this)\">発注</button>`;
     const row=document.createElement('div');row.className='item-row';
     row.style.cursor='pointer';
     row.onclick=()=>{if(shelf){S.currentRoom=shelf.roomId;renderRoomTabs();selectTier(shelf.id+'-'+item.tier);}};
@@ -1163,7 +1163,7 @@ function renderCatTreeWithExpanded(expanded){
   cont.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">カテゴリ一覧</div>';
   renderTreeNodes(cont, tree, [], _catExpanded);
 }
-function selectCat(ps){S.selectedCatPath=ps;renderCatTree();const items=S.items.filter(i=>i.cat&&i.cat.startsWith(ps));const cont=document.getElementById('cat-item-list');if(!items.length){cont.innerHTML='<div style="color:var(--text-tertiary);font-size:18px;padding:16px">この分類に品目はありません</div>';return;}cont.innerHTML=items.map(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId),room=shelf?S.rooms.find(r=>r.id===shelf.roomId):null;const tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':`${item.tier}段目`):'';const s=sc(item),pct=Math.min(100,Math.round(item.stock/item.max*100)),hasUrl=item.orderUrl&&item.orderUrl.trim();let csb='';if(s==='warn')csb=`<button class="status-btn warn" onclick="openListModal('warn')" style="flex-shrink:0">少なめ ↗</button>`;else if(s==='low')csb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none;flex-shrink:0">発注 ↗</a>`:`<button class="status-btn low" onclick="openUrlModal('${item.id}')" style="flex-shrink:0">URL登録 ＋</button>`;return `<div class="cat-item-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:18px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${item.name}</span>${csb}<button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',-1,'${ps}')">−</button><button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',1,'${ps}')">＋</button><button class="qty-btn p" onclick="catBulkIn('${item.id}','${ps}')" style="width:auto;height:32px;font-size:14px;padding:0 12px;white-space:nowrap">入庫</button></div><div style="font-size:14px;color:var(--text-secondary)">${room?`${room.name} › ${shelf.name} › ${tl}`:''}</div><div style="height:5px;background:var(--bg-tertiary);border-radius:3px;margin-top:6px"><div style="width:${pct}%;height:5px;border-radius:3px;background:${s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75'}"></div></div><div style="font-size:14px;color:var(--text-secondary);margin-top:3px">在庫 ${item.stock}/${item.max}</div></div></div>`;}).join('');}
+function selectCat(ps){S.selectedCatPath=ps;renderCatTree();const items=S.items.filter(i=>i.cat&&i.cat.startsWith(ps));const cont=document.getElementById('cat-item-list');if(!items.length){cont.innerHTML='<div style="color:var(--text-tertiary);font-size:18px;padding:16px">この分類に品目はありません</div>';return;}cont.innerHTML=items.map(item=>{const shelf=S.shelves.find(s=>s.id===item.shelfId),room=shelf?S.rooms.find(r=>r.id===shelf.roomId):null;const tl=shelf?(item.tier===1?'上段':item.tier===shelf.tiers?'下段':`${item.tier}段目`):'';const s=sc(item),pct=Math.min(100,Math.round(item.stock/item.max*100)),hasUrl=item.orderUrl&&item.orderUrl.trim();let csb='';if(s==='warn')csb=`<button class="status-btn warn" onclick="openListModal('warn')" style="flex-shrink:0">少なめ ↗</button>`;else if(s==='low')csb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none;flex-shrink:0">発注ページ ↗</a>`:``;csb+=`<button class="status-btn" style="background:#185FA5;border-color:#185FA5;color:#fff;font-size:13px;font-weight:700;flex-shrink:0" onclick="orderItem('${item.id}',this)">発注</button>`;return `<div class="cat-item-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:18px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${item.name}</span>${csb}<button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',-1,'${ps}')">−</button><button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',1,'${ps}')">＋</button><button class="qty-btn p" onclick="catBulkIn('${item.id}','${ps}')" style="width:auto;height:32px;font-size:14px;padding:0 12px;white-space:nowrap">入庫</button></div><div style="font-size:14px;color:var(--text-secondary)">${room?`${room.name} › ${shelf.name} › ${tl}`:''}</div><div style="height:5px;background:var(--bg-tertiary);border-radius:3px;margin-top:6px"><div style="width:${pct}%;height:5px;border-radius:3px;background:${s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75'}"></div></div><div style="font-size:14px;color:var(--text-secondary);margin-top:3px">在庫 ${item.stock}/${item.max}</div></div></div>`;}).join('');}
 function catBulkIn(id, ps) {
   const item = S.items.find(i => i.id === id);
   if (!item) return;
@@ -1199,7 +1199,9 @@ function filterCatItems() {
     const hasUrl = item.orderUrl && item.orderUrl.trim();
     let csb = '';
     if(s==='warn') csb=`<button class="status-btn warn" onclick="openListModal('warn')" style="flex-shrink:0">少なめ ↗</button>`;
-    else if(s==='low') csb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none;flex-shrink:0">発注 ↗</a>`:`<button class="status-btn low" onclick="openUrlModal('${item.id}')" style="flex-shrink:0">URL登録 ＋</button>`;
+    else if(s==='low') csb=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none;flex-shrink:0"
+>発注ページ ↗</a>`:``;
+    csb+=`<button class=\"status-btn\" style=\"background:#185FA5;border-color:#185FA5;color:#fff;font-size:13px;font-weight:700;flex-shrink:0\" onclick=\"orderItem('${item.id}',this)\">発注</button>`;
     const ps = S.selectedCatPath || '';
     return `<div class="cat-item-card"><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:18px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${item.name}</span>${csb}<button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',-1,'${ps}')">−</button><button class="qty-btn" style="width:32px;height:32px;font-size:18px" onclick="catChg('${item.id}',1,'${ps}')">＋</button><button class="qty-btn p" onclick="catBulkIn('${item.id}','${ps}')" style="width:auto;height:32px;font-size:14px;padding:0 12px;white-space:nowrap">入庫</button></div><div style="font-size:14px;color:var(--text-secondary)">${room?`${room.name} › ${shelf.name} › ${tl}`:''}</div><div style="height:5px;background:var(--bg-tertiary);border-radius:3px;margin-top:6px"><div style="width:${pct}%;height:5px;border-radius:3px;background:${s==='low'?'#E24B4A':s==='warn'?'#EF9F27':'#1D9E75'}"></div></div><div style="font-size:14px;color:var(--text-secondary);margin-top:3px">在庫 ${item.stock}/${item.max}</div></div></div>`;
   }).join('');
@@ -1215,6 +1217,8 @@ function showScanPickup(item) {
   const now = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
   const el = document.getElementById('scan-pickup');
   el.style.display = 'block';
+  const hasUrl=item.orderUrl&&item.orderUrl.trim();
+  const orderBtn=hasUrl?`<a class="status-btn low" href="${item.orderUrl}" target="_blank" rel="noopener" style="text-decoration:none;flex-shrink:0">発注ページ ↗</a>`:``; 
   el.innerHTML = `<div class="item-row" style="margin-bottom:8px">
     <div class="item-name-row"><span class="item-name">${item.name}</span><span style="font-size:11px;color:var(--text-tertiary)">${loc}</span></div>
     <div class="stock-bar-wrap"><div class="stock-bar ${s}" style="width:${pct}%"></div><div class="order-line" style="left:${opct}%"></div></div>
@@ -1224,6 +1228,8 @@ function showScanPickup(item) {
       <span class="qty-val" id="scan-qty-val" style="font-size:18px">${item.stock}</span>
       <button class="qty-btn" style="width:36px;height:36px;font-size:20px" onclick="scanChg('${item.id}',1)">＋</button>
       <button class="qty-btn p" onclick="scanBulkIn('${item.id}')" style="width:auto;height:36px;font-size:15px;padding:0 14px;white-space:nowrap">入庫</button>
+      ${orderBtn}
+      <button class="status-btn" style="background:#185FA5;border-color:#185FA5;color:#fff;font-size:13px;font-weight:700;flex-shrink:0" onclick="orderItem('${item.id}',this)">発注</button>
     </div>
   </div>`;
 }
@@ -1323,7 +1329,7 @@ function doScanTo(val, target){
   } else {
     // 複数ヒット→一覧表示
     if(statusEl){statusEl.textContent=byName.length+'件ヒット — 選択してください';statusEl.style.color='#185FA5';statusEl.style.display='block';}
-    showScanMultiResult(byName);
+    showScanMultiResult(byName, target);
   }
 }
 
@@ -1343,8 +1349,8 @@ function selectScanItem(id){
   const item=S.items.find(i=>i.id===id);
   if(!item)return;
   document.getElementById('scan-multi-result').style.display='none';
-  const statusEl=target==='manual'?document.getElementById('scan-status-msg-manual'):document.getElementById('scan-status-msg');
-  const multiEl=target==='manual'?document.getElementById('scan-multi-result-manual'):document.getElementById('scan-multi-result');
+  document.getElementById('scan-multi-result-manual').style.display='none';
+  const statusEl=document.getElementById('scan-status-msg');
   if(statusEl){statusEl.textContent='✅ '+item.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
   showScanPickup(item);
   setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
@@ -1598,32 +1604,9 @@ function closeItemEditModal(){
   editingItemId = null;
 }
 
-function renderEditBarcode(code){
-  const wrap = document.getElementById('ie-barcode-wrap');
-  const numEl = document.getElementById('ie-barcode-num');
-  if(!code){wrap.style.display='none';return;}
-  wrap.style.display='block';
-  numEl.textContent = code;
-  // JsBarcode でバーコード描画（利用可能な場合）
-  try{
-    const svg = document.getElementById('ie-barcode-svg');
-    if(typeof JsBarcode !== 'undefined'){
-      const fmt = code.length===13?'EAN13':code.length===8?'EAN8':code.length===12?'UPC':'CODE128';
-      JsBarcode(svg, code, {format:fmt,width:1.5,height:50,displayValue:false,margin:4});
-    } else {
-      // JsBarcode未ロード時はテキスト表示
-      svg.innerHTML=`<text x="10" y="20" font-size="12">${code}</text>`;
-    }
-  }catch(e){
-    document.getElementById('ie-barcode-svg').innerHTML='';
-    console.warn('Barcode render error:',e);
-  }
-}
+function renderEditBarcode(code){ /* バーコードプレビュー削除済み */ }
 
-// ie-codeの変更でバーコードをリアルタイム更新
 document.addEventListener('DOMContentLoaded',()=>{
-  const codeInput = document.getElementById('ie-code');
-  if(codeInput) codeInput.addEventListener('input',()=>renderEditBarcode(codeInput.value));
   const urlInput = document.getElementById('ie-url');
   if(urlInput) urlInput.addEventListener('input',()=>{
     const link=document.getElementById('ie-url-link');
@@ -1632,21 +1615,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
-function openJanScannerForEdit(){
-  // JANスキャナーを開き、結果をie-codeに入れる
-  const orig = applyJanCode;
-  janTargetItemId = '__ie__';
-  window._janEditCallback = (code)=>{
-    document.getElementById('ie-code').value = code;
-    renderEditBarcode(code);
-    document.getElementById('jan-status').textContent = `✅ ${code} を読み取りました`;
-    setTimeout(closeJanScanner, 900);
-  };
-  openJanScanner('__ie__');
-}
-
-// applyJanCode: __ie__（品目編集モーダル用）ケースを追加処理
-const _origApplyJanCode = typeof applyJanCode !== 'undefined' ? applyJanCode : null;
 
 function saveItemEdit(){
   const item = S.items.find(i=>i.id===editingItemId);
@@ -1688,93 +1656,6 @@ function deleteItemFromEdit(){
 }
 
 // ===== JANコードスキャナー（品目マスタ用）=====
-let janStream=null,janScanInterval=null,janTargetItemId=null;
-
-function openJanScanner(itemId){
-  janTargetItemId=itemId||null;
-  document.getElementById('jan-overlay').classList.add('show');
-  document.getElementById('jan-status').textContent='カメラを起動中...';
-  document.getElementById('jan-manual-input').value='';
-  startJanCamera();
-}
-
-function closeJanScanner(){
-  stopJanCamera();
-  document.getElementById('jan-overlay').classList.remove('show');
-}
-
-async function startJanCamera(deviceId){
-  stopJanCamera();
-  try{
-    const devices=await navigator.mediaDevices.enumerateDevices();
-    const cams=devices.filter(d=>d.kind==='videoinput');
-    const sel=document.getElementById('jan-cam-select');
-    sel.innerHTML=cams.map((d,i)=>`<option value="${d.deviceId}">${d.label||'カメラ '+(i+1)}</option>`).join('');
-    if(!deviceId){
-      const backIdx=cams.findIndex(d=>d.label.toLowerCase().includes('back')||d.label.includes('背面')||d.label.includes('rear'));
-      if(backIdx>-1){sel.selectedIndex=backIdx;deviceId=cams[backIdx].deviceId;}
-    }
-    const constraints={video:deviceId?{deviceId:{exact:deviceId}}:{facingMode:'environment'}};
-    janStream=await navigator.mediaDevices.getUserMedia(constraints);
-    const video=document.getElementById('jan-video');
-    video.srcObject=janStream;
-    await video.play();
-    document.getElementById('jan-status').textContent='バーコードをフレームに合わせてください';
-    startJanScanLoop();
-  }catch(err){
-    document.getElementById('jan-status').textContent='❌ カメラにアクセスできません。手入力で登録してください。';
-    console.error(err);
-  }
-}
-
-async function switchJanCamera(){
-  const sel=document.getElementById('jan-cam-select');
-  await startJanCamera(sel.value);
-}
-
-function stopJanCamera(){
-  if(janScanInterval){clearInterval(janScanInterval);janScanInterval=null;}
-  if(janStream){janStream.getTracks().forEach(t=>t.stop());janStream=null;}
-}
-
-function startJanScanLoop(){
-  if(!('BarcodeDetector' in window)){
-    document.getElementById('jan-status').textContent='⚠ このブラウザは非対応です。Chrome/Edgeをお使いいただくか手入力してください。';
-    return;
-  }
-  const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','itf']});
-  janScanInterval=setInterval(async()=>{
-    const video=document.getElementById('jan-video');
-    if(!video.videoWidth)return;
-    try{
-      const barcodes=await detector.detect(video);
-      if(barcodes.length>0){
-        applyJanCode(barcodes[0].rawValue);
-      }
-    }catch(e){}
-  },300);
-}
-
-function applyJanCode(code){
-  code=(code||'').trim();
-  if(!code)return;
-  if(janTargetItemId){
-    // 既存品目のコードを更新
-    const item=S.items.find(i=>i.id===janTargetItemId);
-    if(item){
-      item.code=code;
-      renderSettings();
-      document.getElementById('jan-status').textContent=`✅ "${item.name}" のコードを ${code} に登録しました`;
-      setTimeout(closeJanScanner,1200);
-    }
-  } else {
-    // 新規登録フォームに入力
-    document.getElementById('ni-code').value=code;
-    document.getElementById('jan-status').textContent=`✅ ${code} を読み取りました`;
-    setTimeout(closeJanScanner,900);
-  }
-}
-
 
 // ===== マップオブジェクト（机・入口など） =====
 const OBJ_COLORS=['#5B8DEF','#4CAF50','#EF9F27','#E24B4A','#9B59B6','#888','#795548'];
@@ -2179,7 +2060,7 @@ function renderOrderList() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
           ${r.status==='pending' ? `<button class="btn" onclick="setOrderStatus('${r.id}','in_progress')" style="font-size:13px;padding:6px 14px;color:#185FA5;border-color:#185FA5;white-space:nowrap">対応中にする</button>` : ''}
-          ${r.status==='in_progress' ? `<button class="btn p" onclick="setOrderStatus('${r.id}','done')" style="font-size:13px;padding:6px 14px;white-space:nowrap">対応完了</button>` : ''}
+          ${r.status==='in_progress' ? `<button class="btn p" onclick="completeArrivalByOrderId('${r.id}')" style="font-size:13px;padding:6px 14px;white-space:nowrap">対応完了</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -2218,6 +2099,10 @@ function setOrderStatus(id, status) {
   const r = orderRequests.find(r => r.id === id);
   if (!r) return;
   r.status = status;
+  // 対応中にする→入荷待ちリストに追加
+  if (status === 'in_progress') {
+    addToArrival(r.itemId, r.itemName, true);
+  }
   // 対応完了時：orderRequestedから削除してスマホ側にも反映
   if (status === 'done') {
     if (window._orderRequested && r.itemId) {
@@ -2450,6 +2335,141 @@ window.fbDeleteHistoryRange = async function(fromDate, toDate) {
     await set(ref(db, 'history'), Object.keys(keep).length > 0 ? keep : null);
   } catch(e) { console.error('fbDeleteHistoryRange error:', e); }
 };
+
+// ===== 入荷待ちリスト =====
+var arrivalList = []; // {id, itemId, itemName, orderQty, orderedAt, fromOrderRequest}
+
+function renderArrivalTab() {
+  var el = document.getElementById('arrival-list');
+  var badge = document.getElementById('arrival-badge');
+  if (!el) return;
+  if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
+  if (!arrivalList.length) {
+    el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';
+    return;
+  }
+  el.innerHTML = arrivalList.map(function(a) {
+    var item = S.items.find(function(i){ return i.id === a.itemId; });
+    var stock = item ? item.stock : '?';
+    return '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px">'
+      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.itemName + '</div>'
+      + '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">現在庫: ' + stock + ' / 発注数: <strong>' + (a.orderQty || '未設定') + '</strong></div>'
+      + '</div>'
+      + '<button class="btn" onclick="editArrivalQty(\'' + a.id + '\')" style="font-size:13px"><i class="ti ti-edit"></i> 発注数</button>'
+      + '<button class="btn p" onclick="completeArrival(\'' + a.id + '\')" style="font-size:13px;font-weight:700"><i class="ti ti-check"></i> 入荷済み</button>'
+      + '<button class="btn" onclick="removeArrival(\'' + a.id + '\')" style="font-size:13px;color:#A32D2D;border-color:#E24B4A">取消</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+function orderItem(itemId, btn) {
+  var item = S.items.find(function(i){ return i.id === itemId; });
+  if (!item) return;
+  addToArrival(itemId, item.name, false);
+  // ボタンの視覚フィードバック
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '✓ 追加済み';
+    btn.style.background = '#1D9E75';
+    btn.style.borderColor = '#1D9E75';
+    btn.disabled = true;
+    setTimeout(function(){ btn.textContent = orig; btn.style.background = '#185FA5'; btn.style.borderColor = '#185FA5'; btn.disabled = false; }, 2000);
+  }
+}
+
+function addToArrival(itemId, itemName, fromOrderRequest) {
+  itemName = String(itemName).replace(/&apos;/g, "'");
+  var exists = arrivalList.find(function(a){ return a.itemId === itemId; });
+  if (exists) { showToast('「' + itemName + '」はすでに入荷待ちリストにあります'); return; }
+  var entry = { id: 'ar-' + Date.now(), itemId: itemId, itemName: itemName, orderQty: null, orderedAt: new Date().toISOString(), fromOrderRequest: fromOrderRequest || false };
+  arrivalList.push(entry);
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+  showToast('✓ 「' + itemName + '」を入荷待ちリストに追加しました');
+  var badge = document.getElementById('arrival-badge');
+  if (badge) { badge.style.display = 'inline'; badge.textContent = arrivalList.length; }
+}
+
+function editArrivalQty(id) {
+  var a = arrivalList.find(function(a){ return a.id === id; });
+  if (!a) return;
+  var val = prompt('発注数を入力してください', a.orderQty || '');
+  if (val === null) return;
+  var qty = parseInt(val);
+  if (isNaN(qty) || qty < 1) { alert('正しい数量を入力してください'); return; }
+  a.orderQty = qty;
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+}
+
+function completeArrival(id) {
+  var a = arrivalList.find(function(a){ return a.id === id; });
+  if (!a) return;
+  var qty = a.orderQty;
+  if (!qty) { alert('発注数を先に設定してください'); return; }
+  if (!confirm('「' + a.itemName + '」' + qty + '個を入荷済みにしますか？在庫が' + qty + '個増えます。')) return;
+  var item = S.items.find(function(i){ return i.id === a.itemId; });
+  if (item) {
+    item.stock += qty;
+    var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
+    if (window.fbAddHistory) fbAddHistory(record);
+    if (window.fbSave) fbSave();
+    renderSummary(); drawMap();
+    var ap = document.querySelector('.panel.active');
+    if (ap && ap.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
+  }
+  // 発注依頼リストとも連携
+  if (a.fromOrderRequest) {
+    orderRequests = orderRequests.map(function(r){ return r.itemId === a.itemId && r.status !== 'done' ? Object.assign({}, r, {status:'done'}) : r; });
+    if (window._orderRequested) delete window._orderRequested[a.itemId];
+    if (window.fbSaveOrderRequests) fbSaveOrderRequests();
+    if (window.fbSave) fbSave();
+    renderOrderList();
+  }
+  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+  showToast('✓ 入荷済みにしました（在庫 +' + qty + '）');
+}
+
+function completeArrivalByOrderId(orderId) {
+  var r = orderRequests.find(function(r){ return r.id === orderId; });
+  if (!r) return;
+  // 入荷待ちリストにあれば入荷済み処理
+  var a = arrivalList.find(function(a){ return a.itemId === r.itemId; });
+  if (a) {
+    completeArrival(a.id);
+  } else {
+    // なければ直接完了
+    r.status = 'done';
+    if (window.fbSave) fbSave();
+    renderOrderList();
+    showToast('✓ 対応完了にしました');
+  }
+}
+
+function removeArrival(id) {
+  var a = arrivalList.find(function(x){ return x.id === id; });
+  if (!a || !confirm('「' + a.itemName + '」を入荷待ちリストから取り消しますか？')) return;
+  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+}
+
+window.fbSaveArrivalList = async function() {
+  try { await set(ref(db, 'arrivalList'), arrivalList.length ? arrivalList : null); } catch(e) {}
+};
+
+window.fbLoadArrivalList = async function() {
+  try {
+    var snap = await get(ref(db, 'arrivalList'));
+    arrivalList = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : Object.values(snap.val())) : [];
+    renderArrivalTab();
+  } catch(e) {}
+};
+
 window._fbResolve();
 </script>
 </body>

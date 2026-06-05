@@ -1053,7 +1053,7 @@ function exportHistoryCSVData(filtered){
 
 
 
-function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(tab==='arrival'){if(window.fbLoadArrivalListImpl)window.fbLoadArrivalListImpl().then(function(){renderArrivalTab();});else renderArrivalTab();return;}if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();if(tab==='export')renderExportTab();}
+function switchTab(tab,el){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+tab).classList.add('active');el.classList.add('active');if(tab==='arrival'){renderArrivalTab();return;}if(window.fbRefresh)fbRefresh();if(tab==='category')renderCatTree();if(tab==='settings')renderSettings();if(tab==='history')renderHistory();if(tab==='order')renderOrderList();if(tab==='export')renderExportTab();}
 let canvas,ctx,wrap,drag=null,didDrag=false;
 function initCanvas(){canvas=document.getElementById('floor-canvas');ctx=canvas.getContext('2d');wrap=document.getElementById('floor-wrap');resizeCanvas();window.addEventListener('resize',()=>{resizeCanvas();drawMap();});canvas.addEventListener('mousedown',onMD);canvas.addEventListener('mousemove',onMM);canvas.addEventListener('mouseup',(e)=>{
   if(S.editMode && !didDrag && drag && drag.shelf){
@@ -2455,6 +2455,8 @@ function clearCompletedOrders() {
           drawMap();
           renderOrderList();
           startRealtimeSync();
+          if(window.fbLoadArrivalListImpl) window.fbLoadArrivalListImpl();
+          if(window.fbLoadManualOrderHistoryImpl) window.fbLoadManualOrderHistoryImpl();
         });
       });
     });

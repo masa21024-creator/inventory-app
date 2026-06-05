@@ -2006,8 +2006,10 @@ var arrivalList = window.arrivalList; // {id, itemId, itemName, orderQty, ordere
 function renderArrivalTab() {
   var el = document.getElementById('arrival-list');
   var badge = document.getElementById('arrival-badge');
-  if (!el) return;
+  if (!el) { alert('arrival-list要素が見つかりません'); return; }
   var arrivalList = window.arrivalList || [];
+  // デバッグ：強制表示
+  el.innerHTML = '<div style="padding:20px;background:red;color:white;font-size:18px">DEBUG: arrivalList件数=' + arrivalList.length + ' / window.arrivalList件数=' + (window.arrivalList||[]).length + '</div>' + el.innerHTML;
   if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
   if (!arrivalList.length) {
     el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';

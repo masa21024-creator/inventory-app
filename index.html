@@ -1999,6 +1999,139 @@ function exportStockCSV() {
   URL.revokeObjectURL(url);
   showToast('\u2713 CSV\u3092\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u3057\u307e\u3057\u305f');
 }
+// ===== 入荷待ちリスト =====
+window.arrivalList = window.arrivalList || [];
+var arrivalList = window.arrivalList; // {id, itemId, itemName, orderQty, orderedAt, fromOrderRequest}
+
+function renderArrivalTab() {
+  var el = document.getElementById('arrival-list');
+  var badge = document.getElementById('arrival-badge');
+  if (!el) return;
+  if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
+  if (!arrivalList.length) {
+    el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';
+    return;
+  }
+  el.innerHTML = arrivalList.map(function(a) {
+    var item = S.items.find(function(i){ return i.id === a.itemId; });
+    var stock = item ? item.stock : '?';
+    return '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px">'
+      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.itemName + '</div>'
+      + '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">現在庫: ' + stock + ' / 発注数: <strong>' + (a.orderQty || '未設定') + '</strong></div>'
+      + '</div>'
+      + '<button class="btn" onclick="editArrivalQty(\'' + a.id + '\')" style="font-size:13px"><i class="ti ti-edit"></i> 発注数</button>'
+      + '<button class="btn p" onclick="completeArrival(\'' + a.id + '\')" style="font-size:13px;font-weight:700"><i class="ti ti-check"></i> 入荷済み</button>'
+      + '<button class="btn" onclick="removeArrival(\'' + a.id + '\')" style="font-size:13px;color:#A32D2D;border-color:#E24B4A">取消</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+function orderItem(itemId, btn) {
+  var item = S.items.find(function(i){ return i.id === itemId; });
+  if (!item) return;
+  addToArrival(itemId, item.name, false);
+  // ボタンの視覚フィードバック
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '✓ 追加済み';
+    btn.style.background = '#1D9E75';
+    btn.style.borderColor = '#1D9E75';
+    btn.disabled = true;
+    setTimeout(function(){ btn.textContent = orig; btn.style.background = '#185FA5'; btn.style.borderColor = '#185FA5'; btn.disabled = false; }, 2000);
+  }
+}
+
+function addToArrival(itemId, itemName, fromOrderRequest) {
+  itemName = String(itemName).replace(/&apos;/g, "'");
+  var exists = arrivalList.find(function(a){ return a.itemId === itemId; });
+  if (exists) { showToast('「' + itemName + '」はすでに入荷待ちリストにあります'); return; }
+  var entry = { id: 'ar-' + Date.now(), itemId: itemId, itemName: itemName, orderQty: null, orderedAt: new Date().toISOString(), fromOrderRequest: fromOrderRequest || false };
+  arrivalList.push(entry);
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+  showToast('✓ 「' + itemName + '」を入荷待ちリストに追加しました');
+  var badge = document.getElementById('arrival-badge');
+  if (badge) { badge.style.display = 'inline'; badge.textContent = arrivalList.length; }
+}
+
+function editArrivalQty(id) {
+  var a = arrivalList.find(function(a){ return a.id === id; });
+  if (!a) return;
+  var val = prompt('発注数を入力してください', a.orderQty || '');
+  if (val === null) return;
+  var qty = parseInt(val);
+  if (isNaN(qty) || qty < 1) { alert('正しい数量を入力してください'); return; }
+  a.orderQty = qty;
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+}
+
+function completeArrival(id) {
+  var a = arrivalList.find(function(a){ return a.id === id; });
+  if (!a) return;
+  var qty = a.orderQty;
+  if (!qty) { alert('発注数を先に設定してください'); return; }
+  if (!confirm('「' + a.itemName + '」' + qty + '個を入荷済みにしますか？在庫が' + qty + '個増えます。')) return;
+  var item = S.items.find(function(i){ return i.id === a.itemId; });
+  if (item) {
+    item.stock += qty;
+    var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
+    if (window.fbAddHistory) fbAddHistory(record);
+    if (window.fbSave) fbSave();
+    renderSummary(); drawMap();
+    var ap = document.querySelector('.panel.active');
+    if (ap && ap.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
+  }
+  // 発注依頼リストとも連携
+  if (a.fromOrderRequest) {
+    orderRequests = orderRequests.map(function(r){ return r.itemId === a.itemId && r.status !== 'done' ? Object.assign({}, r, {status:'done'}) : r; });
+    if (window._orderRequested) delete window._orderRequested[a.itemId];
+    if (window.fbSaveOrderRequests) fbSaveOrderRequests();
+    if (window.fbSave) fbSave();
+    renderOrderList();
+  }
+  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+  showToast('✓ 入荷済みにしました（在庫 +' + qty + '）');
+}
+
+function completeArrivalByOrderId(orderId) {
+  var r = orderRequests.find(function(r){ return r.id === orderId; });
+  if (!r) return;
+  // 入荷待ちリストにあれば入荷済み処理
+  var a = arrivalList.find(function(a){ return a.itemId === r.itemId; });
+  if (a) {
+    completeArrival(a.id);
+  } else {
+    // なければ直接完了
+    r.status = 'done';
+    if (window.fbSave) fbSave();
+    renderOrderList();
+    showToast('✓ 対応完了にしました');
+  }
+}
+
+function removeArrival(id) {
+  var a = arrivalList.find(function(x){ return x.id === id; });
+  if (!a || !confirm('「' + a.itemName + '」を入荷待ちリストから取り消しますか？')) return;
+  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
+  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
+  renderArrivalTab();
+}
+
+// fbSaveArrivalList/fbLoadArrivalListはFirebaseモジュールから呼び出す
+// ここではプレースホルダーのみ（実装はmodule側に残す）
+window._pendingArrivalSave = false;
+function fbSaveArrivalList() {
+  if (window.fbSaveArrivalListImpl) window.fbSaveArrivalListImpl();
+}
+function fbLoadArrivalList() {
+  if (window.fbLoadArrivalListImpl) window.fbLoadArrivalListImpl();
+}
+
 // ===== 発注依頼 =====
 var orderRequests = [];
 
@@ -2336,140 +2469,20 @@ window.fbDeleteHistoryRange = async function(fromDate, toDate) {
   } catch(e) { console.error('fbDeleteHistoryRange error:', e); }
 };
 
-// ===== 入荷待ちリスト =====
-var arrivalList = []; // {id, itemId, itemName, orderQty, orderedAt, fromOrderRequest}
-
-function renderArrivalTab() {
-  var el = document.getElementById('arrival-list');
-  var badge = document.getElementById('arrival-badge');
-  if (!el) return;
-  if (badge) { badge.style.display = arrivalList.length ? 'inline' : 'none'; badge.textContent = arrivalList.length; }
-  if (!arrivalList.length) {
-    el.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-size:15px">入荷待ちの品目はありません</div>';
-    return;
-  }
-  el.innerHTML = arrivalList.map(function(a) {
-    var item = S.items.find(function(i){ return i.id === a.itemId; });
-    var stock = item ? item.stock : '?';
-    return '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px">'
-      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + a.itemName + '</div>'
-      + '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">現在庫: ' + stock + ' / 発注数: <strong>' + (a.orderQty || '未設定') + '</strong></div>'
-      + '</div>'
-      + '<button class="btn" onclick="editArrivalQty(\'' + a.id + '\')" style="font-size:13px"><i class="ti ti-edit"></i> 発注数</button>'
-      + '<button class="btn p" onclick="completeArrival(\'' + a.id + '\')" style="font-size:13px;font-weight:700"><i class="ti ti-check"></i> 入荷済み</button>'
-      + '<button class="btn" onclick="removeArrival(\'' + a.id + '\')" style="font-size:13px;color:#A32D2D;border-color:#E24B4A">取消</button>'
-      + '</div></div>';
-  }).join('');
-}
-
-function orderItem(itemId, btn) {
-  var item = S.items.find(function(i){ return i.id === itemId; });
-  if (!item) return;
-  addToArrival(itemId, item.name, false);
-  // ボタンの視覚フィードバック
-  if (btn) {
-    var orig = btn.textContent;
-    btn.textContent = '✓ 追加済み';
-    btn.style.background = '#1D9E75';
-    btn.style.borderColor = '#1D9E75';
-    btn.disabled = true;
-    setTimeout(function(){ btn.textContent = orig; btn.style.background = '#185FA5'; btn.style.borderColor = '#185FA5'; btn.disabled = false; }, 2000);
-  }
-}
-
-function addToArrival(itemId, itemName, fromOrderRequest) {
-  itemName = String(itemName).replace(/&apos;/g, "'");
-  var exists = arrivalList.find(function(a){ return a.itemId === itemId; });
-  if (exists) { showToast('「' + itemName + '」はすでに入荷待ちリストにあります'); return; }
-  var entry = { id: 'ar-' + Date.now(), itemId: itemId, itemName: itemName, orderQty: null, orderedAt: new Date().toISOString(), fromOrderRequest: fromOrderRequest || false };
-  arrivalList.push(entry);
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
-  renderArrivalTab();
-  showToast('✓ 「' + itemName + '」を入荷待ちリストに追加しました');
-  var badge = document.getElementById('arrival-badge');
-  if (badge) { badge.style.display = 'inline'; badge.textContent = arrivalList.length; }
-}
-
-function editArrivalQty(id) {
-  var a = arrivalList.find(function(a){ return a.id === id; });
-  if (!a) return;
-  var val = prompt('発注数を入力してください', a.orderQty || '');
-  if (val === null) return;
-  var qty = parseInt(val);
-  if (isNaN(qty) || qty < 1) { alert('正しい数量を入力してください'); return; }
-  a.orderQty = qty;
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
-  renderArrivalTab();
-}
-
-function completeArrival(id) {
-  var a = arrivalList.find(function(a){ return a.id === id; });
-  if (!a) return;
-  var qty = a.orderQty;
-  if (!qty) { alert('発注数を先に設定してください'); return; }
-  if (!confirm('「' + a.itemName + '」' + qty + '個を入荷済みにしますか？在庫が' + qty + '個増えます。')) return;
-  var item = S.items.find(function(i){ return i.id === a.itemId; });
-  if (item) {
-    item.stock += qty;
-    var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
-    if (window.fbAddHistory) fbAddHistory(record);
-    if (window.fbSave) fbSave();
-    renderSummary(); drawMap();
-    var ap = document.querySelector('.panel.active');
-    if (ap && ap.id === 'panel-category' && typeof renderCatTree === 'function') renderCatTree();
-  }
-  // 発注依頼リストとも連携
-  if (a.fromOrderRequest) {
-    orderRequests = orderRequests.map(function(r){ return r.itemId === a.itemId && r.status !== 'done' ? Object.assign({}, r, {status:'done'}) : r; });
-    if (window._orderRequested) delete window._orderRequested[a.itemId];
-    if (window.fbSaveOrderRequests) fbSaveOrderRequests();
-    if (window.fbSave) fbSave();
-    renderOrderList();
-  }
-  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
-  renderArrivalTab();
-  showToast('✓ 入荷済みにしました（在庫 +' + qty + '）');
-}
-
-function completeArrivalByOrderId(orderId) {
-  var r = orderRequests.find(function(r){ return r.id === orderId; });
-  if (!r) return;
-  // 入荷待ちリストにあれば入荷済み処理
-  var a = arrivalList.find(function(a){ return a.itemId === r.itemId; });
-  if (a) {
-    completeArrival(a.id);
-  } else {
-    // なければ直接完了
-    r.status = 'done';
-    if (window.fbSave) fbSave();
-    renderOrderList();
-    showToast('✓ 対応完了にしました');
-  }
-}
-
-function removeArrival(id) {
-  var a = arrivalList.find(function(x){ return x.id === id; });
-  if (!a || !confirm('「' + a.itemName + '」を入荷待ちリストから取り消しますか？')) return;
-  arrivalList = arrivalList.filter(function(x){ return x.id !== id; });
-  if(window.fbSaveArrivalList) window.fbSaveArrivalList();
-  renderArrivalTab();
-}
-
-window.fbSaveArrivalList = async function() {
-  try { await set(ref(db, 'arrivalList'), arrivalList.length ? arrivalList : null); } catch(e) {}
+// 入荷待ちリストのFirebase保存・読込（module内から実装）
+window.fbSaveArrivalListImpl = async function() {
+  try {
+    var list = window.arrivalList || [];
+    await set(ref(db, 'arrivalList'), list.length ? list : null);
+  } catch(e) { console.error('fbSaveArrivalList error:', e); }
 };
-
-window.fbLoadArrivalList = async function() {
+window.fbLoadArrivalListImpl = async function() {
   try {
     var snap = await get(ref(db, 'arrivalList'));
-    arrivalList = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : Object.values(snap.val())) : [];
-    renderArrivalTab();
-  } catch(e) {}
+    window.arrivalList = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : Object.values(snap.val())) : [];
+    if (typeof renderArrivalTab === 'function') renderArrivalTab();
+  } catch(e) { console.error('fbLoadArrivalList error:', e); }
 };
-
 window._fbResolve();
 </script>
 </body>

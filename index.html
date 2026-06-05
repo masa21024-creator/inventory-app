@@ -2121,21 +2121,22 @@ function renderManualOrderHistory() {
   var sorted = manualOrderHistory.slice().sort(function(a,b){ return new Date(b.arrivedAt)-new Date(a.arrivedAt); });
   el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:14px">'
     + '<thead><tr style="background:var(--bg-secondary)">'
-    + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷日時</th>'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">発注日時</th>'
     + '<th style="padding:8px 12px;text-align:left;font-weight:600">商品名</th>'
     + '<th style="padding:8px 12px;text-align:right;font-weight:600">発注数</th>'
     + '<th style="padding:8px 12px;text-align:left;font-weight:600">発注先</th>'
-    + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷予定日</th>'
+    + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷日時</th>'
     + '</tr></thead><tbody>'
     + sorted.map(function(h, i) {
-        var dt = new Date(h.arrivedAt).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        var arrivedDt = new Date(h.arrivedAt).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        var orderedDt = h.orderedAt ? new Date(h.orderedAt).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
         var bg = i%2===0 ? 'var(--bg-primary)' : 'var(--bg-secondary)';
         return '<tr style="background:'+bg+';border-bottom:1px solid var(--border)">'
-          + '<td style="padding:8px 12px">'+dt+'</td>'
+          + '<td style="padding:8px 12px;color:var(--text-secondary)">'+orderedDt+'</td>'
           + '<td style="padding:8px 12px;font-weight:600">'+h.itemName+'</td>'
           + '<td style="padding:8px 12px;text-align:right;font-weight:700;color:#185FA5">'+h.orderQty+'個</td>'
           + '<td style="padding:8px 12px;color:var(--text-secondary)">'+(h.supplier||'—')+'</td>'
-          + '<td style="padding:8px 12px;color:var(--text-secondary)">'+(h.expectedDate||'—')+'</td>'
+          + '<td style="padding:8px 12px;color:var(--text-secondary)">'+arrivedDt+'</td>'
           + '</tr>';
       }).join('')
     + '</tbody></table>';

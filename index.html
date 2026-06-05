@@ -2278,14 +2278,20 @@ function completeArrival(id) {
 function completeArrivalByOrderId(orderId) {
   var r = orderRequests.find(function(r){ return r.id === orderId; });
   if (!r) return;
+  // _orderRequestedから削除（再浮上防止）
+  if (window._orderRequested && r.itemId) {
+    delete window._orderRequested[r.itemId];
+  }
   // 入荷待ちリストにあれば入荷済み処理
-  var a = arrivalList.find(function(a){ return a.itemId === r.itemId; });
+  var a = (window.arrivalList||[]).find(function(a){ return a.itemId === r.itemId; });
   if (a) {
+    a.fromOrderRequest = true; // 発注依頼連携フラグを立てる
     completeArrival(a.id);
   } else {
     // なければ直接完了
     r.status = 'done';
     if (window.fbSave) fbSave();
+    if (window.fbSaveOrderRequests) fbSaveOrderRequests();
     renderOrderList();
     showToast('✓ 対応完了にしました');
   }
@@ -2580,7 +2586,18 @@ window.fbLoadHistory = async function() {
 };
 window.fbSaveOrderRequests = async function() {
   try {
-    await set(ref(db, 'orderRequests'), window._orderRequests_list || []);
+    // orderRequestedの完了済み・対応中はFirebaseから削除
+    if (window._orderRequested) {
+      var toDelete = [];
+      Object.keys(window._orderRequested).forEach(function(itemId) {
+        var req = orderRequests.find(function(r){ return r.itemId === itemId; });
+        if (!req || req.status === 'done') toDelete.push(itemId);
+      });
+      for (var i = 0; i < toDelete.length; i++) {
+        delete window._orderRequested[toDelete[i]];
+        await remove(ref(db, 'inventory/orderRequested/' + toDelete[i]));
+      }
+    }
   } catch(e) { console.error('fbSaveOrderRequests error:', e); }
 };
 window.fbLoadOrderRequests = async function() {

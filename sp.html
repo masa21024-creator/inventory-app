@@ -275,7 +275,7 @@ window.doFirebaseLogin = async function() {
     }
   } catch(e) {
     errEl.style.display='block';
-    errEl.textContent='メールアドレスまたはパスワードが正しくありません';
+    errEl.textContent = 'エラー: ' + (e.code || e.message || '不明なエラー');
   }
   btn.textContent='ログイン';btn.disabled=false;
 };

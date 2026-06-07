@@ -2468,7 +2468,30 @@ function clearCompletedOrders() {
       });
     });
   }
-  function doLogin(){
+  function doFirebaseLogin(){
+  var email = document.getElementById('fb-email').value.trim();
+  var password = document.getElementById('fb-password').value;
+  var errEl = document.getElementById('fb-auth-error');
+  var btn = document.getElementById('fb-login-btn');
+  if(!email||!password){errEl.style.display='block';errEl.textContent='メールアドレスとパスワードを入力してください';return;}
+  btn.textContent='認証中...';btn.disabled=true;errEl.style.display='none';
+  if(window._fbSignIn){
+    window._fbSignIn(email,password).then(function(){
+      document.getElementById('firebase-auth-screen').style.display='none';
+      document.getElementById('login-screen').style.display='flex';
+      // パスワード保存チェックの状態を復元
+      var saved=localStorage.getItem('inv_pass');
+      if(saved){document.getElementById('login-pass').value=saved;document.getElementById('save-pass').checked=true;}
+      btn.textContent='ログイン';btn.disabled=false;
+    }).catch(function(){
+      errEl.style.display='block';
+      errEl.textContent='メールアドレスまたはパスワードが正しくありません';
+      btn.textContent='ログイン';btn.disabled=false;
+    });
+  }
+}
+
+function doLogin(){
     var val=document.getElementById('login-pass').value;
     if(val===PASS){
       // パスワード保存チェック
@@ -2489,7 +2512,8 @@ function clearCompletedOrders() {
   window.doLogout = function(){
     if(!confirm('ログアウトしますか？'))return;
     localStorage.removeItem(LKEY);
-    location.reload();
+    if(window._fbSignOut) window._fbSignOut();
+    else location.reload();
   };
   window.addEventListener('load', function(){
     // 保存済みパスワードを入力欄に復元
@@ -2507,6 +2531,7 @@ function clearCompletedOrders() {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, push, remove, query, orderByChild, startAt, endAt } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyCwDAmpBXsCKRyf69gUVyTsPatgbbtT3EE",
   authDomain: "inventory-app-80426.firebaseapp.com",
@@ -2702,6 +2727,44 @@ window.fbLoadManualOrderHistoryImpl = async function() {
     }
   } catch(e) { console.error('fbLoadManualOrderHistory error:', e); }
 };
+// Firebase Authentication
+window._fbSignIn = async function(email, password) {
+  await signInWithEmailAndPassword(auth, email, password);
+};
+window._fbSignOut = async function() {
+  await signOut(auth);
+  document.getElementById('firebase-auth-screen').style.display='flex';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+};
+// 認証状態を監視：セッション残存時は1段階目をスキップ
+onAuthStateChanged(auth, function(user) {
+  if (user) {
+    // 認証済み→1段階目をスキップして2段階目へ
+    document.getElementById('firebase-auth-screen').style.display='none';
+    // アプリが表示中でなければ2段階目を表示
+    var app = document.getElementById('app');
+    if (app && app.style.display !== 'flex') {
+      var loginScreen = document.getElementById('login-screen');
+      if (loginScreen) loginScreen.style.display = 'flex';
+      var saved = localStorage.getItem('inv_pass_k');
+      if (saved) {
+        var passEl = document.getElementById('login-pass');
+        var remEl = document.getElementById('login-remember');
+        if (passEl) passEl.value = saved;
+        if (remEl) remEl.checked = true;
+      }
+    }
+  } else {
+    // 未認証→1段階目を表示
+    var app = document.getElementById('app');
+    if (app && app.style.display !== 'flex') {
+      document.getElementById('firebase-auth-screen').style.display='flex';
+      document.getElementById('login-screen').style.display='none';
+    }
+  }
+});
+
 window._fbResolve();
 </script>
 </body>

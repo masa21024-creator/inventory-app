@@ -131,7 +131,22 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 </script>
 </head>
 <body>
-<div id="login-screen">
+<div id="firebase-auth-screen" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999">
+  <div class="login-box">
+    <i class="ti ti-lock" style="font-size:40px;color:#185FA5"></i>
+    <h2>備品管理ナビ</h2>
+    <p style="color:#666;font-size:14px">アカウント認証</p>
+    <div style="position:relative;width:100%">
+      <input type="email" id="fb-email" class="login-input" placeholder="メールアドレス" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('fb-password').focus()" style="width:100%;box-sizing:border-box"/>
+    </div>
+    <div style="position:relative;width:100%">
+      <input type="password" id="fb-password" class="login-input" placeholder="パスワード" autocomplete="current-password" onkeydown="if(event.key==='Enter')doFirebaseLogin()" style="width:100%;box-sizing:border-box"/>
+    </div>
+    <div id="fb-auth-error" style="color:#E24B4A;font-size:13px;display:none">メールアドレスまたはパスワードが正しくありません</div>
+    <button class="login-btn" onclick="doFirebaseLogin()" id="fb-login-btn">ログイン</button>
+  </div>
+</div>
+<div id="login-screen" class="hidden">
   <div class="login-box">
     <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
     <h2>備品管理ナビ</h2>
@@ -2478,11 +2493,15 @@ function clearCompletedOrders() {
   if(window._fbSignIn){
     window._fbSignIn(email,password).then(function(){
       document.getElementById('firebase-auth-screen').style.display='none';
-      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('login-screen').classList.remove('hidden');
       // パスワード保存チェックの状態を復元
-      var saved=localStorage.getItem('inv_pass');
-      if(saved){document.getElementById('login-pass').value=saved;document.getElementById('save-pass').checked=true;}
+      var saved=localStorage.getItem(LKEY);
+      if(saved){
+        document.getElementById('login-pass').value=saved;
+        document.getElementById('login-remember').checked=true;
+      }
       btn.textContent='ログイン';btn.disabled=false;
+      setTimeout(function(){document.getElementById('login-pass').focus();},100);
     }).catch(function(){
       errEl.style.display='block';
       errEl.textContent='メールアドレスまたはパスワードが正しくありません';
@@ -2522,8 +2541,9 @@ function doLogin(){
       document.getElementById('login-pass').value = saved;
       document.getElementById('login-remember').checked = true;
     }
-    document.getElementById('login-screen').classList.remove('hidden');
-    setTimeout(function(){ document.getElementById('login-pass').focus(); }, 100);
+    // login-screenは最初は非表示。onAuthStateChangedで制御
+    // document.getElementById('login-screen').classList.remove('hidden');
+    setTimeout(function(){ document.getElementById('fb-email').focus(); }, 100);
   });
 })();
 </script>

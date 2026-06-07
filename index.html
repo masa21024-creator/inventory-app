@@ -2483,7 +2483,7 @@ function clearCompletedOrders() {
       });
     });
   }
-  function doFirebaseLogin(){
+  window.doFirebaseLogin = function doFirebaseLogin(){
   var email = document.getElementById('fb-email').value.trim();
   var password = document.getElementById('fb-password').value;
   var errEl = document.getElementById('fb-auth-error');

@@ -127,8 +127,21 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
 </head>
 <body>
 
+<!-- Firebase認証画面 -->
+<div id="firebase-auth-screen" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999">
+  <div style="background:white;border-radius:16px;padding:32px 24px;width:90%;max-width:340px;display:flex;flex-direction:column;gap:14px;align-items:center">
+    <div style="font-size:36px">🔒</div>
+    <div style="font-size:20px;font-weight:700;color:#1A3557">備品管理ナビ</div>
+    <div style="font-size:13px;color:#888">アカウント認証</div>
+    <input type="email" id="fb-email" placeholder="メールアドレス" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('fb-password').focus()" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #DDD;border-radius:8px;font-size:15px"/>
+    <input type="password" id="fb-password" placeholder="パスワード" autocomplete="current-password" onkeydown="if(event.key==='Enter')window.doFirebaseLogin()" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #DDD;border-radius:8px;font-size:15px"/>
+    <div id="fb-auth-error" style="color:#E24B4A;font-size:13px;display:none">メールアドレスまたはパスワードが正しくありません</div>
+    <button id="fb-login-btn" onclick="window.doFirebaseLogin()" style="width:100%;padding:14px;background:#185FA5;color:white;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer">ログイン</button>
+  </div>
+</div>
+
 <!-- ログイン画面 -->
-<div id="login-screen">
+<div id="login-screen" class="hidden">
   <div class="login-box">
     <i class="ti ti-package" style="font-size:40px;color:#185FA5"></i>
     <h2>備品管理ナビ</h2>
@@ -237,6 +250,28 @@ function showApp() {
   document.getElementById('app').classList.remove('hidden');
 }
 
+window.doFirebaseLogin = function() {
+  var email = document.getElementById('fb-email').value.trim();
+  var password = document.getElementById('fb-password').value;
+  var errEl = document.getElementById('fb-auth-error');
+  var btn = document.getElementById('fb-login-btn');
+  if(!email||!password){errEl.style.display='block';errEl.textContent='メールアドレスとパスワードを入力してください';return;}
+  btn.textContent='認証中...';btn.disabled=true;errEl.style.display='none';
+  if(window._fbSignIn){
+    window._fbSignIn(email,password).then(function(){
+      document.getElementById('firebase-auth-screen').style.display='none';
+      document.getElementById('login-screen').classList.remove('hidden');
+      var saved=localStorage.getItem('sp_inv_pass');
+      if(saved){var el=document.getElementById('login-pass');if(el)el.value=saved;}
+      btn.textContent='ログイン';btn.disabled=false;
+    }).catch(function(){
+      errEl.style.display='block';
+      errEl.textContent='メールアドレスまたはパスワードが正しくありません';
+      btn.textContent='ログイン';btn.disabled=false;
+    });
+  }
+};
+
 function doLogin() {
   var val = document.getElementById('login-pass').value;
   if (val === PASS) {
@@ -281,7 +316,8 @@ function spLogout(){
   if(!confirm('ログアウトしますか？'))return;
   sessionStorage.removeItem(KEY);
   localStorage.removeItem(LKEY);
-  location.reload();
+  if(window._fbSignOut) window._fbSignOut();
+  else location.reload();
 }
 
 // ===== アプリ初期化 =====
@@ -928,6 +964,36 @@ window.startRealtimeSync = function() {
     }, 500);
   });
 };
+// Firebase Authentication
+window._fbSignIn = async function(email, password) {
+  await signInWithEmailAndPassword(auth, email, password);
+};
+window._fbSignOut = async function() {
+  await signOut(auth);
+  document.getElementById('sp-firebase-auth-screen').style.display='flex';
+  document.getElementById('sp-login-screen').style.display='none';
+  document.getElementById('sp-app').style.display='none';
+};
+onAuthStateChanged(auth, function(user) {
+  if (user) {
+    document.getElementById('sp-firebase-auth-screen').style.display='none';
+    var app = document.getElementById('sp-app');
+    if (app && app.style.display !== 'flex') {
+      document.getElementById('sp-login-screen').style.display='flex';
+      var saved = localStorage.getItem('sp_inv_pass');
+      if (saved) {
+        var el = document.getElementById('sp-login-pass');
+        if (el) el.value = saved;
+      }
+    }
+  } else {
+    var app = document.getElementById('sp-app');
+    if (app && app.style.display !== 'flex') {
+      document.getElementById('sp-firebase-auth-screen').style.display='flex';
+      document.getElementById('sp-login-screen').style.display='none';
+    }
+  }
+});
 window._fbResolve();
 </script>
 </body>

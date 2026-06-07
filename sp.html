@@ -128,7 +128,10 @@ window._fbReady = new Promise(function(resolve){ _fbResolve = resolve; window._f
 <body>
 
 <!-- Firebase認証画面 -->
-<div id="firebase-auth-screen" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999">
+<div id="loading-screen" style="position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:999999">
+  <div style="color:white;font-size:18px">読み込み中...</div>
+</div>
+<div id="firebase-auth-screen" style="position:fixed;inset:0;background:#1a1a2e;display:none;align-items:center;justify-content:center;z-index:99999">
   <div style="background:white;border-radius:16px;padding:32px 24px;width:90%;max-width:340px;display:flex;flex-direction:column;gap:14px;align-items:center">
     <div style="font-size:36px">🔒</div>
     <div style="font-size:20px;font-weight:700;color:#1A3557">備品管理ナビ</div>
@@ -987,22 +990,22 @@ window._fbSignOut = async function() {
 window._fbResolve();
 
 onAuthStateChanged(auth, function(user) {
+  // 読み込み中画面を非表示
+  var loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) loadingScreen.style.display='none';
   var app = document.getElementById('app');
   // アプリが既に表示中なら何もしない
   if (app && !app.classList.contains('hidden')) return;
   var fbScreen = document.getElementById('firebase-auth-screen');
-  var loginScreen = document.getElementById('login-screen');
   if (user) {
-    // Firebase認証済み→両段階スキップして直接アプリ起動
+    // Firebase認証済み→直接アプリ起動
     if (fbScreen) fbScreen.style.display='none';
-    if (loginScreen) loginScreen.classList.add('hidden');
     sessionStorage.setItem(KEY, '1');
     if (typeof showApp === 'function') showApp();
     if (typeof initApp === 'function') initApp();
   } else {
     // 未認証→Firebase認証画面を表示
     if (fbScreen) fbScreen.style.display='flex';
-    if (loginScreen) loginScreen.classList.add('hidden');
     sessionStorage.removeItem(KEY);
   }
 });

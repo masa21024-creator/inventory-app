@@ -2758,35 +2758,39 @@ window._fbSignOut = async function() {
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
 };
+window._fbResolve();
+
 // 認証状態を監視：セッション残存時は1段階目をスキップ
 onAuthStateChanged(auth, function(user) {
+  var app = document.getElementById('app');
+  var fbScreen = document.getElementById('firebase-auth-screen');
+  var loginScreen = document.getElementById('login-screen');
+  // アプリが既に表示中なら何もしない
+  if (app && (app.style.display === 'flex' || app.classList.contains('active'))) return;
   if (user) {
-    // 認証済み→1段階目をスキップして2段階目へ
-    document.getElementById('firebase-auth-screen').style.display='none';
-    // アプリが表示中でなければ2段階目を表示
-    var app = document.getElementById('app');
-    if (app && app.style.display !== 'flex') {
-      var loginScreen = document.getElementById('login-screen');
-      if (loginScreen) loginScreen.style.display = 'flex';
-      var saved = localStorage.getItem('inv_pass_k');
-      if (saved) {
-        var passEl = document.getElementById('login-pass');
-        var remEl = document.getElementById('login-remember');
-        if (passEl) passEl.value = saved;
-        if (remEl) remEl.checked = true;
-      }
+    // 認証済み→Firebase認証画面を非表示、2段階目を表示
+    if (fbScreen) fbScreen.style.display='none';
+    if (loginScreen) {
+      loginScreen.classList.remove('hidden');
+      loginScreen.style.display='';
+    }
+    // 保存済みパスワードを復元
+    var saved = localStorage.getItem('inv_app_pass');
+    if (saved) {
+      var passEl = document.getElementById('login-pass');
+      var remEl = document.getElementById('login-remember');
+      if (passEl) passEl.value = saved;
+      if (remEl) remEl.checked = true;
     }
   } else {
-    // 未認証→1段階目を表示
-    var app = document.getElementById('app');
-    if (app && app.style.display !== 'flex') {
-      document.getElementById('firebase-auth-screen').style.display='flex';
-      document.getElementById('login-screen').style.display='none';
+    // 未認証→Firebase認証画面を表示
+    if (fbScreen) fbScreen.style.display='flex';
+    if (loginScreen) {
+      loginScreen.classList.add('hidden');
+      loginScreen.style.display='';
     }
   }
 });
-
-window._fbResolve();
 </script>
 </body>
 </html>

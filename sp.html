@@ -261,7 +261,7 @@ window.doFirebaseLogin = function() {
     window._fbSignIn(email,password).then(function(){
       document.getElementById('firebase-auth-screen').style.display='none';
       document.getElementById('login-screen').classList.remove('hidden');
-      var saved=localStorage.getItem('sp_inv_pass');
+      var saved=localStorage.getItem('sp_app_pass');
       if(saved){var el=document.getElementById('login-pass');if(el)el.value=saved;}
       btn.textContent='ログイン';btn.disabled=false;
     }).catch(function(){
@@ -970,31 +970,33 @@ window._fbSignIn = async function(email, password) {
 };
 window._fbSignOut = async function() {
   await signOut(auth);
-  document.getElementById('sp-firebase-auth-screen').style.display='flex';
-  document.getElementById('sp-login-screen').style.display='none';
-  document.getElementById('sp-app').style.display='none';
+  var fbScreen = document.getElementById('firebase-auth-screen');
+  var loginScreen = document.getElementById('login-screen');
+  var app = document.getElementById('app');
+  if (fbScreen) fbScreen.style.display='flex';
+  if (loginScreen) loginScreen.classList.add('hidden');
+  if (app) app.classList.add('hidden');
 };
+window._fbResolve();
+
 onAuthStateChanged(auth, function(user) {
+  var app = document.getElementById('app');
+  var fbScreen = document.getElementById('firebase-auth-screen');
+  var loginScreen = document.getElementById('login-screen');
+  if (app && (app.style.display === 'flex' || !app.classList.contains('hidden'))) return;
   if (user) {
-    document.getElementById('sp-firebase-auth-screen').style.display='none';
-    var app = document.getElementById('sp-app');
-    if (app && app.style.display !== 'flex') {
-      document.getElementById('sp-login-screen').style.display='flex';
-      var saved = localStorage.getItem('sp_inv_pass');
-      if (saved) {
-        var el = document.getElementById('sp-login-pass');
-        if (el) el.value = saved;
-      }
+    if (fbScreen) fbScreen.style.display='none';
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    var saved = localStorage.getItem('sp_app_pass');
+    if (saved) {
+      var el = document.getElementById('login-pass');
+      if (el) el.value = saved;
     }
   } else {
-    var app = document.getElementById('sp-app');
-    if (app && app.style.display !== 'flex') {
-      document.getElementById('sp-firebase-auth-screen').style.display='flex';
-      document.getElementById('sp-login-screen').style.display='none';
-    }
+    if (fbScreen) fbScreen.style.display='flex';
+    if (loginScreen) loginScreen.classList.add('hidden');
   }
 });
-window._fbResolve();
 </script>
 </body>
 </html>

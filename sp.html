@@ -993,7 +993,8 @@ onAuthStateChanged(auth, function(user) {
   var app = document.getElementById('app');
   var fbScreen = document.getElementById('firebase-auth-screen');
   var loginScreen = document.getElementById('login-screen');
-  if (app && (app.style.display === 'flex' || !app.classList.contains('hidden'))) return;
+  // アプリが既に表示中なら何もしない
+  if (app && !app.classList.contains('hidden')) return;
   if (user) {
     if (fbScreen) fbScreen.style.display='none';
     if (loginScreen) loginScreen.classList.remove('hidden');

@@ -997,6 +997,7 @@ onAuthStateChanged(auth, function(user) {
     if (fbScreen) fbScreen.style.display='none';
     if (loginScreen) loginScreen.classList.add('hidden');
     sessionStorage.setItem(KEY, '1');
+    if (typeof showApp === 'function') showApp();
     if (typeof initApp === 'function') initApp();
   } else {
     // 未認証→Firebase認証画面を表示

@@ -257,7 +257,6 @@ window.doFirebaseLogin = async function() {
   var btn = document.getElementById('fb-login-btn');
   if(!email||!password){errEl.style.display='block';errEl.textContent='メールアドレスとパスワードを入力してください';return;}
   btn.textContent='認証中...';btn.disabled=true;errEl.style.display='none';
-  // _fbSignInのロード待ち（最大3秒）
   var waited = 0;
   while(!window._fbSignIn && waited < 3000) {
     await new Promise(function(r){setTimeout(r,100);});
@@ -266,10 +265,11 @@ window.doFirebaseLogin = async function() {
   try {
     if(window._fbSignIn){
       await window._fbSignIn(email, password);
+      // Firebase認証成功→2段階目スキップして直接アプリ起動
       document.getElementById('firebase-auth-screen').style.display='none';
-      document.getElementById('login-screen').classList.remove('hidden');
-      var saved=localStorage.getItem('sp_app_pass');
-      if(saved){var el=document.getElementById('login-pass');if(el)el.value=saved;}
+      sessionStorage.setItem(KEY, '1');
+      showApp();
+      initApp();
     } else {
       throw new Error('認証モジュール未ロード');
     }
@@ -314,11 +314,8 @@ document.getElementById('toggle-pass').addEventListener('click', function() {
   else { i.type = 'password'; this.textContent = '👁'; }
 });
 
-// 起動時チェック
-if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(LKEY) === '1') {
-  sessionStorage.setItem(KEY, '1');
-  showApp();
-}
+// 起動時チェック（Firebase認証のonAuthStateChangedで制御するため不要）
+// sessionStorage/localStorageはFallback用に残す
 
 function spLogout(){
   if(!confirm('ログアウトしますか？'))return;
@@ -991,19 +988,21 @@ window._fbResolve();
 
 onAuthStateChanged(auth, function(user) {
   var app = document.getElementById('app');
-  var fbScreen = document.getElementById('firebase-auth-screen');
-  var loginScreen = document.getElementById('login-screen');
   // アプリが既に表示中なら何もしない
   if (app && !app.classList.contains('hidden')) return;
+  var fbScreen = document.getElementById('firebase-auth-screen');
+  var loginScreen = document.getElementById('login-screen');
   if (user) {
-    // Firebase認証済み→2段階目もスキップしてアプリを直接起動
+    // Firebase認証済み→両段階スキップして直接アプリ起動
     if (fbScreen) fbScreen.style.display='none';
     if (loginScreen) loginScreen.classList.add('hidden');
     sessionStorage.setItem(KEY, '1');
     if (typeof initApp === 'function') initApp();
   } else {
+    // 未認証→Firebase認証画面を表示
     if (fbScreen) fbScreen.style.display='flex';
     if (loginScreen) loginScreen.classList.add('hidden');
+    sessionStorage.removeItem(KEY);
   }
 });
 </script>

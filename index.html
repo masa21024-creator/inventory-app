@@ -2254,9 +2254,9 @@ function completeArrival(id) {
   if (!a.manual) {
     var item = S.items.find(function(i){ return i.id === a.itemId; });
     if (item) {
+      var prevStock = item.stock;
       item.stock += qty;
-      var record = { id: 'pc-' + Date.now(), ts: new Date().toISOString(), itemId: item.id, itemName: item.name, itemCode: item.code||'', cat: item.cat||'', action: '入庫', diff: qty, prevStock: item.stock - qty, newStock: item.stock, unitPrice: item.unitPrice||0, location: '入荷済み処理' };
-      if (window.fbAddHistory) fbAddHistory(record);
+      addHistory(item, prevStock, item.stock, '入庫');
       if (window.fbSave) fbSave();
       renderSummary(); drawMap();
       var ap = document.querySelector('.panel.active');

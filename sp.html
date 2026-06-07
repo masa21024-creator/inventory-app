@@ -996,13 +996,11 @@ onAuthStateChanged(auth, function(user) {
   // アプリが既に表示中なら何もしない
   if (app && !app.classList.contains('hidden')) return;
   if (user) {
+    // Firebase認証済み→2段階目もスキップしてアプリを直接起動
     if (fbScreen) fbScreen.style.display='none';
-    if (loginScreen) loginScreen.classList.remove('hidden');
-    var saved = localStorage.getItem('sp_app_pass');
-    if (saved) {
-      var el = document.getElementById('login-pass');
-      if (el) el.value = saved;
-    }
+    if (loginScreen) loginScreen.classList.add('hidden');
+    sessionStorage.setItem(KEY, '1');
+    if (typeof initApp === 'function') initApp();
   } else {
     if (fbScreen) fbScreen.style.display='flex';
     if (loginScreen) loginScreen.classList.add('hidden');

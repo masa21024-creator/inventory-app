@@ -2563,6 +2563,7 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
+const auth = getAuth(fbApp);
 window.fbLoad = async function() {
   try {
     const snap = await get(ref(db, 'inventory'));

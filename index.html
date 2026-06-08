@@ -1385,6 +1385,8 @@ function doScanTo(val, target){
   const byCode=S.items.find(i=>i.code===val);
   if(byCode){
     if(statusEl){statusEl.textContent='✅ '+byCode.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
+    document.getElementById('scan-log').insertAdjacentHTML('afterbegin',
+      '<div class="log-row"><span>'+byCode.name+'</span><span>'+now+'</span></div>');
     showScanPickup(byCode);
     setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
     return;
@@ -1399,6 +1401,8 @@ function doScanTo(val, target){
     setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
   } else if(byName.length===1){
     if(statusEl){statusEl.textContent='✅ '+byName[0].name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
+    document.getElementById('scan-log').insertAdjacentHTML('afterbegin',
+      '<div class="log-row"><span>'+byName[0].name+'</span><span>'+now+'</span></div>');
     showScanPickup(byName[0]);
     setTimeout(function(){if(statusEl)statusEl.style.display='none';},3000);
   } else {

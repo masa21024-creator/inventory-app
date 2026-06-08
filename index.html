@@ -1368,8 +1368,15 @@ function onScanKey(e){
 }
 
 function doScan(val){ doScanTo(val, 'barcode'); }
+function toHankaku(str) {
+  return str.replace(/[０-９Ａ-Ｚａ-ｚ]/g, function(s) {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  }).replace(/　/g, ' ').trim();
+}
+
 function doScanTo(val, target){
   if(!val)return;
+  val = toHankaku(val);
   const statusEl=target==='manual'?document.getElementById('scan-status-msg-manual'):document.getElementById('scan-status-msg');
   const multiEl=target==='manual'?document.getElementById('scan-multi-result-manual'):document.getElementById('scan-multi-result');
   const now=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});

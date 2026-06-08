@@ -672,7 +672,14 @@ function scanSuccessFeedback() {
   } catch(e) {}
 }
 
+function toHankaku(str) {
+  return str.replace(/[０-９Ａ-Ｚａ-ｚ]/g, function(s) {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  }).replace(/　/g, ' ').trim();
+}
+
 function handleScan(code) {
+  code = toHankaku(code);
   var item = S.items.find(function(i) { return i.code === code || i.name === code; });
   if (!item) {
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);

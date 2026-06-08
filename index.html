@@ -510,13 +510,21 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   </div>
 </div>
 <div class="overlay" id="manual-order-history-overlay" onclick="if(event.target===this)closeManualOrderHistory()">
-  <div class="modal" style="width:600px;max-height:80vh;display:flex;flex-direction:column">
+  <div class="modal" style="width:660px;max-height:80vh;display:flex;flex-direction:column">
     <div class="modal-title">
       <span><i class="ti ti-history"></i> 発注履歴（アプリ外商品）</span>
       <button class="close-btn" onclick="closeManualOrderHistory()">×</button>
     </div>
     <div style="padding:10px 16px;background:#FEF3CD;border-bottom:1px solid #EF9F27;font-size:13px;color:#856404">
       <i class="ti ti-info-circle"></i> このページはアプリに登録されていない商品の発注履歴です。アプリ内商品の入出庫履歴は「履歴タブ」をご確認ください。
+    </div>
+    <!-- 期間削除 -->
+    <div style="padding:8px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary)">期間削除：</span>
+      <input type="date" id="moh-del-from" class="sinput" style="font-size:13px;padding:4px 8px"/>
+      <span style="font-size:13px;color:var(--text-secondary)">〜</span>
+      <input type="date" id="moh-del-to" class="sinput" style="font-size:13px;padding:4px 8px"/>
+      <button class="btn" onclick="deleteManualOrderHistoryByPeriod()" style="font-size:13px;color:#A32D2D;border-color:#E24B4A">期間削除</button>
     </div>
     <div style="flex:1;overflow-y:auto" id="manual-order-history-list">
       <div style="color:var(--text-tertiary);text-align:center;padding:32px">履歴はありません</div>
@@ -589,9 +597,23 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       </div>
       <!-- JANコード -->
       <div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;font-weight:600">JANコード / バーコード</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="sinput" id="ie-code" style="flex:1" placeholder="コード番号"/>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;font-weight:600">JANコード / バーコード（最大3つ）</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:12px;color:var(--text-tertiary);min-width:36px">1つ目</span>
+            <input class="sinput" id="ie-code-1" style="flex:1" placeholder="コード番号"/>
+            <button class="btn" onclick="document.getElementById('ie-code-1').value=''" style="font-size:12px;padding:3px 8px;color:#A32D2D">削除</button>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:12px;color:var(--text-tertiary);min-width:36px">2つ目</span>
+            <input class="sinput" id="ie-code-2" style="flex:1" placeholder="コード番号（省略可）"/>
+            <button class="btn" onclick="document.getElementById('ie-code-2').value=''" style="font-size:12px;padding:3px 8px;color:#A32D2D">削除</button>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:12px;color:var(--text-tertiary);min-width:36px">3つ目</span>
+            <input class="sinput" id="ie-code-3" style="flex:1" placeholder="コード番号（省略可）"/>
+            <button class="btn" onclick="document.getElementById('ie-code-3').value=''" style="font-size:12px;padding:3px 8px;color:#A32D2D">削除</button>
+          </div>
         </div>
       </div>
       <!-- カテゴリ -->
@@ -1382,7 +1404,7 @@ function doScanTo(val, target){
   const now=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
 
   // コード完全一致を優先
-  const byCode=S.items.find(i=>i.code===val);
+  const byCode=S.items.find(i=>(i.code||'').split(',').map(function(c){return c.trim();}).includes(val));
   if(byCode){
     if(statusEl){statusEl.textContent='✅ '+byCode.name;statusEl.style.color='#1D9E75';statusEl.style.display='block';}
     document.getElementById('scan-log').insertAdjacentHTML('afterbegin',
@@ -1649,7 +1671,10 @@ function openItemEditModal(itemId){
   const item = S.items.find(i=>i.id===itemId);
   if(!item) return;
   document.getElementById('ie-name').value = item.name;
-  document.getElementById('ie-code').value = item.code||'';
+  var codes = (item.code||'').split(',').map(function(c){return c.trim();});
+  document.getElementById('ie-code-1').value = codes[0]||'';
+  document.getElementById('ie-code-2').value = codes[1]||'';
+  document.getElementById('ie-code-3').value = codes[2]||'';
   document.getElementById('ie-max').value = item.max||30;
   document.getElementById('ie-order-at').value = item.orderAt||10;
   document.getElementById('ie-price').value = item.unitPrice||0;
@@ -1700,7 +1725,10 @@ function saveItemEdit(){
   const item = S.items.find(i=>i.id===editingItemId);
   if(!item) return;
   item.name = document.getElementById('ie-name').value.trim()||item.name;
-  item.code = document.getElementById('ie-code').value.trim();
+  var c1=document.getElementById('ie-code-1').value.trim();
+  var c2=document.getElementById('ie-code-2').value.trim();
+  var c3=document.getElementById('ie-code-3').value.trim();
+  item.code = [c1,c2,c3].filter(function(c){return c;}).join(',');
   item.cat = document.getElementById('ie-cat').value||item.cat;
   item.max = parseInt(document.getElementById('ie-max').value)||item.max;
   item.orderAt = parseInt(document.getElementById('ie-order-at').value)||item.orderAt;
@@ -2152,6 +2180,7 @@ function renderManualOrderHistory() {
     + '<th style="padding:8px 12px;text-align:right;font-weight:600">発注数</th>'
     + '<th style="padding:8px 12px;text-align:left;font-weight:600">発注先</th>'
     + '<th style="padding:8px 12px;text-align:left;font-weight:600">入荷日時</th>'
+    + '<th style="padding:8px 12px"></th>'
     + '</tr></thead><tbody>'
     + sorted.map(function(h, i) {
         var arrivedDt = new Date(h.arrivedAt).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -2163,9 +2192,38 @@ function renderManualOrderHistory() {
           + '<td style="padding:8px 12px;text-align:right;font-weight:700;color:#185FA5">'+h.orderQty+'個</td>'
           + '<td style="padding:8px 12px;color:var(--text-secondary)">'+(h.supplier||'—')+'</td>'
           + '<td style="padding:8px 12px;color:var(--text-secondary)">'+arrivedDt+'</td>'
+          + '<td style="padding:8px 12px"><button class="btn" onclick="deleteManualOrderHistoryOne(\'' + h.id + '\')" style="font-size:12px;color:#A32D2D;border-color:#E24B4A;padding:2px 8px">削除</button></td>'
           + '</tr>';
       }).join('')
     + '</tbody></table>';
+}
+
+function deleteManualOrderHistoryOne(id) {
+  if (!confirm('この履歴を削除しますか？')) return;
+  manualOrderHistory = manualOrderHistory.filter(function(h){ return h.id !== id; });
+  if (window.fbSaveManualOrderHistoryImpl) window.fbSaveManualOrderHistoryImpl();
+  renderManualOrderHistory();
+}
+
+function deleteManualOrderHistoryByPeriod() {
+  var from = document.getElementById('moh-del-from').value;
+  var to = document.getElementById('moh-del-to').value;
+  if (!from && !to) { alert('期間を指定してください'); return; }
+  var fromDate = from ? new Date(from) : null;
+  var toDate = to ? new Date(to + 'T23:59:59') : null;
+  var count = manualOrderHistory.filter(function(h) {
+    var d = new Date(h.arrivedAt);
+    return (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
+  }).length;
+  if (count === 0) { alert('該当する履歴がありません'); return; }
+  if (!confirm(count + '件の履歴を削除しますか？')) return;
+  manualOrderHistory = manualOrderHistory.filter(function(h) {
+    var d = new Date(h.arrivedAt);
+    return !( (!fromDate || d >= fromDate) && (!toDate || d <= toDate) );
+  });
+  if (window.fbSaveManualOrderHistoryImpl) window.fbSaveManualOrderHistoryImpl();
+  renderManualOrderHistory();
+  showToast(count + '件の履歴を削除しました');
 }
 
 function openManualOrderModal() {

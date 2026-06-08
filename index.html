@@ -2162,10 +2162,9 @@ function renderArrivalTab() {
       + '<div style=\"font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">' + a.itemName + (a.manual ? ' <span style=\"font-size:11px;background:#FEF3CD;color:#856404;border-radius:4px;padding:1px 6px\">手動登録</span>' : '') + '</div>'
       + '<div style=\"margin-top:6px;display:flex;align-items:center;gap:12px\">'
       + subInfo
-      + '<span style=\"font-size:22px;font-weight:700;color:' + (a.orderQty ? '#185FA5' : '#AAA') + '\">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
       + '</div>'
       + '</div>'
-      + '<span style=\"font-size:18px;font-weight:800;color:' + (a.orderQty ? '#185FA5' : '#AAA') + ';margin-right:4px\">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
+      + '<span style=\"font-size:22px;font-weight:800;color:' + (a.orderQty ? '#185FA5' : '#AAA') + ';margin-right:4px\">' + (a.orderQty ? a.orderQty + ' 個発注済み' : '発注数 未設定') + '</span>'
       + (a.manual ? '<button class=\"btn\" onclick=\"editManualArrivalInfo(\'' + a.id + '\')\" style=\"font-size:13px\">編集</button>' : '')
       + '<button class=\"btn\" onclick=\"editArrivalQty(\'' + a.id + '\')\">発注数</button>'
       + '<button class=\"btn p\" onclick=\"completeArrival(\'' + a.id + '\')\">入荷済み</button>'

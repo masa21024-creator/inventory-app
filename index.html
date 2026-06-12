@@ -1964,17 +1964,12 @@ function renderExportTab() {
 // ===== 出力プリセット =====
 var _expPresets = {}; // {name: {cols:{name,stock,...}, itemIds:[]}}
 
-window.fbLoadExportPresets = async function() {
-  try {
-    var snap = await get(ref(db, 'exportPresets'));
-    _expPresets = snap.exists() ? snap.val() : {};
-    renderPresetSel();
-  } catch(e) { console.error('fbLoadExportPresets error:', e); }
-};
-
-window.fbSaveExportPresets = async function() {
-  try { await set(ref(db, 'exportPresets'), _expPresets); } catch(e) {}
-};
+function fbLoadExportPresets() {
+  if (window.fbLoadExportPresetsImpl) window.fbLoadExportPresetsImpl();
+}
+function fbSaveExportPresets() {
+  if (window.fbSaveExportPresetsImpl) window.fbSaveExportPresetsImpl();
+}
 
 function renderPresetSel() {
   var sel = document.getElementById('exp-preset-sel');
@@ -2604,6 +2599,7 @@ function clearCompletedOrders() {
           startRealtimeSync();
           if(window.fbLoadArrivalListImpl) window.fbLoadArrivalListImpl();
           if(window.fbLoadManualOrderHistoryImpl) window.fbLoadManualOrderHistoryImpl();
+          if(window.fbLoadExportPresetsImpl) window.fbLoadExportPresetsImpl();
         });
       });
     });
@@ -2882,6 +2878,19 @@ window._fbSignOut = async function() {
   document.getElementById('firebase-auth-screen').style.display='flex';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
+};
+// 出力プリセットのFirebase保存・読込
+window.fbSaveExportPresetsImpl = async function() {
+  try { await set(ref(db, 'exportPresets'), _expPresets && Object.keys(_expPresets).length ? _expPresets : null); } catch(e) { console.error('fbSaveExportPresets error:', e); }
+};
+window.fbLoadExportPresetsImpl = async function() {
+  try {
+    var snap = await get(ref(db, 'exportPresets'));
+    if (typeof _expPresets !== 'undefined') {
+      _expPresets = snap.exists() ? snap.val() : {};
+    }
+    if (typeof renderPresetSel === 'function') renderPresetSel();
+  } catch(e) { console.error('fbLoadExportPresets error:', e); }
 };
 window._fbResolve();
 

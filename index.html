@@ -2600,6 +2600,7 @@ function clearCompletedOrders() {
           if(window.fbLoadArrivalListImpl) window.fbLoadArrivalListImpl();
           if(window.fbLoadManualOrderHistoryImpl) window.fbLoadManualOrderHistoryImpl();
           if(window.fbLoadExportPresetsImpl) window.fbLoadExportPresetsImpl();
+          if(window.fbLoadOrderRequests) window.fbLoadOrderRequests();
         });
       });
     });
@@ -2754,7 +2755,9 @@ window.fbLoadHistory = async function() {
 };
 window.fbSaveOrderRequests = async function() {
   try {
-    // orderRequestedの完了済み・対応中はFirebaseから削除
+    // orderRequestsリストをFirebaseに保存
+    await set(ref(db, 'orderRequests'), orderRequests.length ? orderRequests : null);
+    // orderRequestedの完了済みはFirebaseから削除
     if (window._orderRequested) {
       var toDelete = [];
       Object.keys(window._orderRequested).forEach(function(itemId) {
@@ -2773,7 +2776,8 @@ window.fbLoadOrderRequests = async function() {
     const snap = await get(ref(db, 'orderRequests'));
     if (snap.exists()) {
       const data = snap.val();
-      window._orderRequests_list = Array.isArray(data) ? data : Object.values(data);
+      orderRequests = Array.isArray(data) ? data : Object.values(data);
+      renderOrderList();
     }
   } catch(e) { console.error('fbLoadOrderRequests error:', e); }
 };
